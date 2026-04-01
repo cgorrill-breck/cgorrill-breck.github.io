@@ -198,7 +198,7 @@ function BubbleSortVisualizer() {
                     </div>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="flex flex-col gap-6">
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                         <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                             📝 FRQ Prep: The Code Logic
@@ -206,51 +206,39 @@ function BubbleSortVisualizer() {
                         <p className="text-sm text-slate-600 mb-4">
                             Watch how changing the sort direction alters <strong>only the comparison operator</strong> in the code.
                         </p>
-                        <pre className="bg-slate-800 text-slate-50 p-4 rounded-xl text-sm overflow-x-auto shadow-inner">
+                        <pre className="bg-slate-800 text-slate-50 p-4 rounded-xl text-sm md:text-base overflow-x-auto shadow-inner">
                             <code>
                                 <span className="text-slate-400">// Outer pass loop</span>
-                                {`for (int i = 0; i < array.length - 1; i++) {
-`}
+                                {`\nfor (int i = 0; i < array.length - 1; i++) {\n`}
                                 <span className="text-slate-400">  // Inner adjacent pair loop</span>
-                                {`  for (int j = 0; j < array.length - i - 1; j++) {
-
-`}
+                                {`\n  for (int j = 0; j < array.length - i - 1; j++) {\n\n`}
                                 <span className="text-slate-400">    // Swap if out of order</span>
-                                {`    `}
+                                {`\n    `}
                                 <span className="bg-indigo-600/50 px-2 py-1 rounded inline-block">
                                     {`if (array[j] ${isAscending ? '>' : '<'} array[j + 1]) {`}
                                 </span>
-                                {`
-          int temp = array[j];
-          array[j] = array[j + 1];
-          array[j + 1] = temp;
-        }
-      }
-    }`}
+                                {`\n      int temp = array[j];\n      array[j] = array[j + 1];\n      array[j + 1] = temp;\n    }\n  }\n}`}
                             </code>
                         </pre>
                     </div>
 
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-                        <h3 className="text-lg font-bold text-slate-800 mb-2">
-                            Color Legend
-                        </h3>
-                        <ul className="space-y-3">
-                            <li className="flex items-center gap-3">
-                                <div className="w-6 h-6 rounded bg-yellow-400 shrink-0"></div>
-                                <span className="text-sm font-medium text-slate-700">Comparing: Checking if they are out of order.</span>
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                        <ul className="flex flex-wrap items-center justify-center gap-6">
+                            <li className="flex items-center gap-2">
+                                <div className="w-4 h-4 rounded bg-yellow-400 shrink-0"></div>
+                                <span className="text-sm font-medium text-slate-700">Comparing</span>
                             </li>
-                            <li className="flex items-center gap-3">
-                                <div className="w-6 h-6 rounded bg-orange-500 shrink-0"></div>
-                                <span className="text-sm font-medium text-slate-700">Swapped: Elements were out of order and moved.</span>
+                            <li className="flex items-center gap-2">
+                                <div className="w-4 h-4 rounded bg-orange-500 shrink-0"></div>
+                                <span className="text-sm font-medium text-slate-700">Swapped</span>
                             </li>
-                            <li className="flex items-center gap-3">
-                                <div className="w-6 h-6 rounded bg-lime-400 shrink-0"></div>
-                                <span className="text-sm font-medium text-slate-700">In Order: No swap needed.</span>
+                            <li className="flex items-center gap-2">
+                                <div className="w-4 h-4 rounded bg-lime-400 shrink-0"></div>
+                                <span className="text-sm font-medium text-slate-700">In Order</span>
                             </li>
-                            <li className="flex items-center gap-3">
-                                <div className="w-6 h-6 rounded bg-emerald-600 shrink-0"></div>
-                                <span className="text-sm font-medium text-slate-700">Locked: Safely in its final sorted position.</span>
+                            <li className="flex items-center gap-2">
+                                <div className="w-4 h-4 rounded bg-emerald-600 shrink-0"></div>
+                                <span className="text-sm font-medium text-slate-700">Locked</span>
                             </li>
                         </ul>
                     </div>
