@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Von Neumann Simulator</title>
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --panel-bg: #ffffff;
+            --text-primary: #334155;
+            --text-secondary: #64748b;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --border: #e2e8f0;
+            --cpu-bg: #eff6ff;
+            --cpu-border: #93c5fd;
+            --mem-bg: #f0fdf4;
+            --mem-border: #86efac;
+            --highlight: #fef08a;
+            --danger: #ef4444;
+            --success: #16a34a;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            margin-top: 0;
+            margin-bottom: 5px;
+            color: #0f172a;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        .layout {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            max-width: 1200px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .controls-panel {
+            background: var(--panel-bg);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            width: 100%;
+            max-width: 320px;
+            flex-shrink: 0;
+            border: 1px solid var(--border);
+        }
+
+        .canvas-panel {
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid var(--border);
+            overflow-x: auto;
+            gap: 20px;
+        }
+
+        .canvas-controls {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        .canvas-controls button {
+            padding: 14px 40px;
+            font-size: 16px;
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
+        }
+
+        h3 {
+            margin-top: 0;
+            color: #0f172a;
+        }
+
+        .instructions-hint {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            background: #f1f5f9;
+            padding: 8px;
+            border-radius: 6px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        textarea {
+            width: 100%;
+            height: 160px;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 12px;
+            box-sizing: border-box;
+            resize: vertical;
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        button {
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            background-color: var(--primary);
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: var(--primary-hover);
+        }
+
+        button:disabled {
+            background-color: #cbd5e1;
+            cursor: not-allowed;
+            color: #94a3b8;
+        }
+
+        button.outline {
+            background-color: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        button.outline:hover:not(:disabled) {
+            background-color: #f1f5f9;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 6px;
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            font-weight: 500;
+            font-size: 0.9rem;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+        }
+
+        canvas {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Von Neumann Architecture</h1>
+    <div class="subtitle">Interactive Instruction Cycle Simulator</div>
+
+    <div class="layout">
+        <!-- Controls Panel -->
+        <div class="controls-panel">
+            <h3>Program Editor</h3>
+            <div class="instructions-hint" style="line-height: 1.6;">
+                <strong>Commands:</strong><br>
+                <code>READ/10 [addr]</code>, <code>WRITE/11 [addr]</code>,
+                <code>LOAD/20 [addr]</code>, <code>STORE/21 [addr]</code>,
+                <code>ADD/30 [addr]</code>, <code>SUBTRACT/31 [addr]</code>,
+                <code>DIVIDE/32 [addr]</code>, <code>MULTIPLY/33 [addr]</code>,
+                <code>BRANCH/40 [addr]</code>, <code>BRANCHNEG/41 [addr]</code>,
+                <code>BRANCHZERO/42 [addr]</code>, <code>HALT/43</code>
+            </div>
+
+            <textarea id="sourceCode" spellcheck="false" style="height: 110px;">READ 14
+READ 15
+LOAD 14
+ADD 15
+STORE 15
+WRITE 15
+HALT</textarea>
+
+            <div style="margin-bottom: 12px;">
+                <strong>Input Data:</strong>
+                <textarea id="inputBuffer" rows="2" style="height: 50px; margin-bottom: 5px;"
+                    placeholder="Comma separated, e.g., 10, 5">10, 5</textarea>
+                <strong>Output Log:</strong>
+                <div id="outputLog"
+                    style="background:#f1f5f9; min-height: 40px; padding:8px; border-radius:6px; font-family:monospace; font-size:14px; border: 1px solid var(--border);">
+                </div>
+            </div>
+
+            <div class="buttons">
+                <button onclick="loadProgram()" id="loadBtn">Load to Memory</button>
+                <button class="outline" onclick="resetSim()">Reset Simulator</button>
+            </div>
+            <div id="statusMsg" class="status">Waiting for program to be loaded...</div>
+        </div>
+
+        <!-- Canvas Panel -->
+        <div class="canvas-panel">
+            <canvas id="simCanvas" width="820" height="620"></canvas>
+            <div class="canvas-controls">
+                <button id="stepBtn" onclick="stepCycle()" disabled>Step Cycle (Fetch & Execute)</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const MEMORY_SIZE = 16;
+
+        let memory = new Array(MEMORY_SIZE).fill("0");
+        let pc = 0;
+        let acc = 0;
+        let ir = "EMPTY";
+        let halted = true;
+        let activeMemIndex = -1; // Highlights memory slot during fetch/execute
+        let inputQueue = [];
+
+        // Layout Constants for Canvas Drawing
+        const CPU_X = 40, CPU_Y = 40, CPU_W = 320, CPU_H = 500;
+        const MEM_X = 460, MEM_Y = 40, MEM_W = 320, MEM_H = 540;
+        const ROW_H = 30;
+
+        function init() {
+            // Fix for high DPI displays
+            const dpr = window.devicePixelRatio || 1;
+
+            // Set actual size in memory (scaled to account for extra pixel density)
+            canvas.width = 820 * dpr;
+            canvas.height = 620 * dpr;
+
+            // Normalize coordinate system to use css pixels
+            ctx.scale(dpr, dpr);
+
+            // Ensure CSS size is set
+            canvas.style.width = "820px";
+            canvas.style.maxWidth = "100%";
+
+            draw();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, 820, 620);
+
+            // --- Draw Buses (Lines connecting CPU and Memory) ---
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 6;
+
+            // Address Bus (Top)
+            ctx.beginPath();
+            ctx.moveTo(CPU_X + CPU_W, CPU_Y + 120);
+            ctx.lineTo(MEM_X, CPU_Y + 120);
+            ctx.stroke();
+
+            // Data Bus (Bottom)
+            ctx.beginPath();
+            ctx.moveTo(CPU_X + CPU_W, CPU_Y + 300);
+            ctx.lineTo(MEM_X, CPU_Y + 300);
+            ctx.stroke();
+
+            // Bus Labels
+            ctx.fillStyle = '#64748b';
+            ctx.font = '600 14px system-ui';
+            ctx.fillText("Address Bus \u2192", CPU_X + CPU_W + 10, CPU_Y + 110);
+            ctx.fillText("\u2194 Data/Instruction Bus", CPU_X + CPU_W + 10, CPU_Y + 290);
+
+
+            // --- Draw CPU Block ---
+            ctx.fillStyle = '#eff6ff';
+            ctx.strokeStyle = '#93c5fd';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(CPU_X, CPU_Y, CPU_W, CPU_H, 12);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#1e3a8a';
+            ctx.font = 'bold 22px system-ui';
+            ctx.fillText("CPU (Central Processing Unit)", CPU_X + 20, CPU_Y + 35);
+
+            // CPU Control Unit area
+            ctx.fillStyle = 'rgba(219, 234, 254, 0.5)';
+            ctx.fillRect(CPU_X + 15, CPU_Y + 50, CPU_W - 30, 200);
+            ctx.fillStyle = '#1e40af';
+            ctx.font = '600 16px system-ui';
+            ctx.fillText("Control Unit", CPU_X + 25, CPU_Y + 70);
+
+            // Draw Control Unit Registers
+            drawRegister(CPU_X + 25, CPU_Y + 85, CPU_W - 50, 70, "Program Counter (PC)", pc);
+            drawRegister(CPU_X + 25, CPU_Y + 165, CPU_W - 50, 70, "Instruction Reg (IR)", ir);
+
+            // ALU Section
+            ctx.fillStyle = 'rgba(224, 231, 255, 0.5)';
+            ctx.fillRect(CPU_X + 15, CPU_Y + 270, CPU_W - 30, 210);
+            ctx.fillStyle = '#3730a3';
+            ctx.font = '600 16px system-ui';
+            ctx.fillText("Arithmetic Logic Unit (ALU)", CPU_X + 25, CPU_Y + 295);
+
+            drawRegister(CPU_X + 25, CPU_Y + 315, CPU_W - 50, 70, "Accumulator (ACC)", acc);
+
+            // Fake ALU internal wires/shapes just for visual flavor
+            ctx.strokeStyle = '#a5b4fc';
+            ctx.beginPath();
+            ctx.moveTo(CPU_X + 100, CPU_Y + 410);
+            ctx.lineTo(CPU_X + 160, CPU_Y + 460);
+            ctx.lineTo(CPU_X + 220, CPU_Y + 410);
+            ctx.stroke();
+
+            // --- Draw Main Memory Block ---
+            ctx.fillStyle = '#f0fdf4';
+            ctx.strokeStyle = '#86efac';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(MEM_X, MEM_Y, MEM_W, MEM_H, 12);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#14532d';
+            ctx.font = 'bold 22px system-ui';
+            ctx.fillText("Main Memory", MEM_X + 20, MEM_Y + 35);
+
+            for (let i = 0; i < MEMORY_SIZE; i++) {
+                let slotY = MEM_Y + 60 + (i * ROW_H);
+
+                // Highlight logic
+                if (i === activeMemIndex) {
+                    ctx.fillStyle = '#fef08a'; // Active execution/fetch highlight
+                    ctx.fillRect(MEM_X + 5, slotY - 22, MEM_W - 10, ROW_H);
+                } else if (!halted && i === pc) {
+                    ctx.fillStyle = '#dcfce7'; // Next instruction indicator
+                    ctx.fillRect(MEM_X + 5, slotY - 22, MEM_W - 10, ROW_H);
+                }
+
+                ctx.fillStyle = '#475569';
+                ctx.font = '16px monospace';
+                ctx.fillText(`[${i.toString().padStart(2, '0')}]`, MEM_X + 20, slotY);
+
+                ctx.fillStyle = '#0f172a';
+                ctx.font = 'bold 16px monospace';
+                // Truncate long strings for display
+                let displayVal = memory[i].length > 18 ? memory[i].substring(0, 15) + '...' : memory[i];
+                ctx.fillText(displayVal, MEM_X + 75, slotY);
+
+                // Slot separator line
+                ctx.strokeStyle = '#bbf7d0';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(MEM_X + 10, slotY + 6);
+                ctx.lineTo(MEM_X + MEM_W - 10, slotY + 6);
+                ctx.stroke();
+            }
+        }
+
+        function drawRegister(x, y, w, h, label, value) {
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 6);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#64748b';
+            ctx.font = '500 13px system-ui';
+            ctx.fillText(label, x + 12, y + 22);
+
+            ctx.fillStyle = '#ef4444';
+            ctx.font = 'bold 20px monospace';
+            ctx.fillText(value, x + 12, y + 52);
+        }
+
+        // --- Simulator Logic ---
+
+        function loadProgram() {
+            const code = document.getElementById("sourceCode").value.split('\n');
+            memory = new Array(MEMORY_SIZE).fill("0");
+
+            // Parse inputs
+            const rawInputs = document.getElementById("inputBuffer").value.split(',');
+            inputQueue = rawInputs.map(v => parseInt(v.trim())).filter(v => !isNaN(v));
+            document.getElementById("outputLog").innerHTML = "";
+
+            // Parse instructions line by line
+            let memIndex = 0;
+            for (let i = 0; i < code.length && memIndex < MEMORY_SIZE; i++) {
+                let instruction = code[i].trim().toUpperCase();
+                if (instruction) {
+                    memory[memIndex] = instruction;
+                    memIndex++;
+                }
+            }
+
+            // Reset CPU State
+            pc = 0;
+            acc = 0;
+            ir = "EMPTY";
+            halted = false;
+            activeMemIndex = -1;
+
+            document.getElementById("stepBtn").disabled = false;
+            setStatus("Program loaded. Click Step to begin Fetch cycle.", "#16a34a");
+            draw();
+        }
+
+        function stepCycle() {
+            if (halted) return;
+
+            // --- 1. FETCH PHASE ---
+            ir = memory[pc];
+            activeMemIndex = pc; // Highlight the address we fetched from
+            let currentPc = pc;
+            pc++; // Increment PC for next cycle
+
+            // --- 2. DECODE PHASE ---
+            let parts = String(ir).trim().split(/\s+/);
+            let opcode = parts[0];
+            let operand = parts.length > 1 ? parseInt(parts[1]) : null;
+
+            // --- 3. EXECUTE PHASE ---
+            let msg = `[PC:${currentPc}] Fetched: ${ir} &rarr; `;
+
+            // Change highlight if execution requires memory access
+            if (operand !== null && !isNaN(operand) && operand >= 0 && operand < MEMORY_SIZE) {
+                const opStr = opcode.toUpperCase();
+                if (['READ', '10', 'WRITE', '11', 'LOAD', '20', 'STORE', '21', 'ADD', '30', 'SUBTRACT', '31', 'DIVIDE', '32', 'MULTIPLY', '33'].includes(opStr)) {
+                    activeMemIndex = operand;
+                }
+            }
+
+            let memVal = operand !== null ? (parseInt(memory[operand]) || 0) : 0;
+
+            switch (opcode.toUpperCase()) {
+                case 'READ':
+                case '10':
+                    let val = inputQueue.length > 0 ? inputQueue.shift() : 0;
+                    memory[operand] = val.toString();
+                    msg += `Read ${val} into Mem[${operand}].`;
+                    break;
+                case 'WRITE':
+                case '11':
+                    document.getElementById("outputLog").innerHTML += `<div>> ${memVal}</div>`;
+                    msg += `Wrote Mem[${operand}] (${memVal}) to output.`;
+                    break;
+                case 'LOAD':
+                case '20':
+                    acc = memVal;
+                    msg += `Loaded Mem[${operand}] to ACC.`;
+                    break;
+                case 'STORE':
+                case '21':
+                    memory[operand] = acc.toString();
+                    msg += `Stored ACC (${acc}) in Mem[${operand}].`;
+                    break;
+                case 'ADD':
+                case '30':
+                    acc += memVal;
+                    msg += `Added Mem[${operand}] to ACC.`;
+                    break;
+                case 'SUBTRACT':
+                case '31':
+                    acc -= memVal;
+                    msg += `Subtracted Mem[${operand}] from ACC.`;
+                    break;
+                case 'DIVIDE':
+                case '32':
+                    if (memVal === 0) {
+                        msg += `ERROR: Divide by zero!`;
+                        halted = true;
+                        document.getElementById("stepBtn").disabled = true;
+                    } else {
+                        acc = Math.floor(acc / memVal);
+                        msg += `Divided ACC by Mem[${operand}].`;
+                    }
+                    break;
+                case 'MULTIPLY':
+                case '33':
+                    acc *= memVal;
+                    msg += `Multiplied ACC by Mem[${operand}].`;
+                    break;
+                case 'BRANCH':
+                case '40':
+                    pc = operand;
+                    msg += `Branched to PC=${operand}.`;
+                    break;
+                case 'BRANCHNEG':
+                case '41':
+                    if (acc < 0) {
+                        pc = operand;
+                        msg += `ACC < 0, branched to PC=${operand}.`;
+                    } else {
+                        msg += `ACC >= 0, branch ignored.`;
+                    }
+                    break;
+                case 'BRANCHZERO':
+                case '42':
+                    if (acc === 0) {
+                        pc = operand;
+                        msg += `ACC == 0, branched to PC=${operand}.`;
+                    } else {
+                        msg += `ACC != 0, branch ignored.`;
+                    }
+                    break;
+                case 'HALT':
+                case '43':
+                    halted = true;
+                    document.getElementById("stepBtn").disabled = true;
+                    msg += `Execution halted.`;
+                    activeMemIndex = -1;
+                    break;
+                default:
+                    if (opcode !== "0" && opcode !== "") {
+                        msg += `Unknown instruction. Ignored.`;
+                    } else {
+                        msg += `No operation (NOP).`;
+                    }
+                    break;
+            }
+
+            setStatus(msg, halted && !msg.includes("ERROR") ? "#ef4444" : (msg.includes("ERROR") ? "#991b1b" : "#334155"));
+            draw();
+        }
+
+        function resetSim() {
+            memory = new Array(MEMORY_SIZE).fill("0");
+            pc = 0;
+            acc = 0;
+            ir = "EMPTY";
+            halted = true;
+            activeMemIndex = -1;
+            inputQueue = [];
+            document.getElementById("outputLog").innerHTML = "";
+            document.getElementById("inputBuffer").value = "10, 5";
+
+            document.getElementById("stepBtn").disabled = true;
+            setStatus("Simulator reset. Write a program and click Load.", "#64748b");
+            draw();
+        }
+
+        function setStatus(htmlText, color) {
+            const el = document.getElementById("statusMsg");
+            el.innerHTML = htmlText;
+            el.style.color = color;
+            if (color === "#ef4444" || color === "#991b1b") { // Danger or Error
+                el.style.borderColor = "#fca5a5";
+                el.style.backgroundColor = "#fef2f2";
+            } else if (color === "#16a34a") { // Success
+                el.style.borderColor = "#86efac";
+                el.style.backgroundColor = "#f0fdf4";
+            } else { // Default
+                el.style.borderColor = "var(--border)";
+                el.style.backgroundColor = "#f8fafc";
+            }
+        }
+
+        // Initialize Canvas on load
+        window.onload = init;
+    </script>
+</body>
+
+</html>
