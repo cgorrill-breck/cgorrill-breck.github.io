@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-900 text-slate-100">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Stack & Execution Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .stack-frame-enter {
+            animation: slideInUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        .stack-frame-exit {
+            animation: popOut 0.3s ease-in forwards;
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(-20px) scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes popOut {
+            from {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+
+            to {
+                opacity: 0;
+                transform: translateY(-25px) scale(0.9);
+            }
+        }
+
+        .active-line-glow {
+            box-shadow: inset 4px 0 0 0 #38bdf8, 0 0 15px rgba(56, 189, 248, 0.15);
+        }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+
+<body class="h-full flex flex-col font-sans antialiased overflow-hidden select-none">
+
+    <header
+        class="bg-slate-800/90 border-b border-slate-700/80 px-6 py-3 flex items-center justify-between shrink-0 shadow-lg backdrop-blur-md">
+        <div class="flex items-center gap-3">
+            <div
+                class="bg-gradient-to-tr from-sky-500 to-indigo-600 text-white p-2.5 rounded-xl shadow-lg shadow-sky-500/20">
+                <i class="fa-solid me-0 fa-layer-group text-lg"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg text-white flex items-center gap-2">
+                    Method Call Stack Visualizer
+                    <span
+                        class="text-xs font-semibold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">CS
+                        Pedagogy Tool</span>
+                </h1>
+                <p class="text-xs text-slate-400">Step-by-step trace of method frames, scope isolation, and program
+                    execution depth</p>
+            </div>
+        </div>
+
+        <!-- Header Actions -->
+        <div class="flex items-center gap-3">
+            <!-- Program Selector -->
+            <div class="flex items-center gap-2 bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-700">
+                <label for="preset-select" class="text-xs font-medium text-slate-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-code text-sky-400"></i> Program:
+                </label>
+                <select id="preset-select"
+                    class="bg-transparent text-xs font-semibold text-slate-200 focus:outline-none cursor-pointer">
+                    <option value="deep-calls" selected>Multi-Level Pipeline (3-Levels Deep, 4 Calls in Main)</option>
+                    <option value="math-chain">Math Engine Pipeline (Nested Formula Calls)</option>
+                    <option value="recursion">Factorial Recursion (Stack Accumulation)</option>
+                </select>
+            </div>
+
+            <!-- Modal Toggle for Custom Code -->
+            <button id="btn-open-editor"
+                class="text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5">
+                <i class="fa-solid fa-pen-to-square"></i> Edit Code / Steps
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 grid grid-cols-12 gap-4 p-4 min-h-0 overflow-hidden">
+
+        <!-- LEFT PANEL: The Vertical Call Stack (Cols 5) -->
+        <section
+            class="col-span-12 lg:col-span-5 bg-slate-800/60 rounded-2xl border border-slate-700/70 p-4 flex flex-col shadow-inner overflow-hidden relative">
+
+            <!-- Stack Panel Header -->
+            <div class="flex items-center justify-between pb-3 border-b border-slate-700/80 shrink-0">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-cubes text-sky-400 text-sm"></i>
+                    <h2 class="font-semibold text-sm text-slate-200">Call Stack Memory</h2>
+                    <span id="stack-count-badge"
+                        class="text-xs font-mono bg-slate-700 px-2 py-0.5 rounded-full text-slate-300">
+                        0 Frames
+                    </span>
+                </div>
+
+                <!-- Max Stack Gauge Indicator -->
+                <div class="flex items-center gap-2 text-xs text-slate-400 font-mono">
+                    <span>Depth:</span>
+                    <div class="w-20 bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-700">
+                        <div id="depth-gauge-bar"
+                            class="bg-gradient-to-r from-sky-400 via-indigo-400 to-purple-500 h-full transition-all duration-300"
+                            style="width: 0%"></div>
+                    </div>
+                    <span id="depth-gauge-text" class="text-slate-200 font-bold">0 / 4</span>
+                </div>
+            </div>
+
+            <!-- Call Stack Canvas (Grows from Bottom to Top visually) -->
+            <div class="flex-1 overflow-y-auto my-3 pr-1 flex flex-col justify-end" id="stack-container">
+                <!-- Stack frames dynamically pushed/popped here -->
+            </div>
+
+            <!-- Stack Legend / Info Footer -->
+            <div
+                class="shrink-0 pt-3 border-t border-slate-700/80 text-xs text-slate-400 flex items-center justify-between bg-slate-800/90 rounded-b-xl px-1">
+                <div class="flex items-center gap-3">
+                    <span class="flex items-center gap-1.5"><span
+                            class="w-2.5 h-2.5 rounded-full bg-sky-400 inline-block"></span> Active Top Frame</span>
+                    <span class="flex items-center gap-1.5"><span
+                            class="w-2.5 h-2.5 rounded-full bg-slate-600 inline-block"></span> Suspended Caller
+                        Frame</span>
+                </div>
+                <div class="text-slate-500 italic">
+                    Top = Current Scope
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT PANEL: Code View & Controls (Cols 7) -->
+        <section class="col-span-12 lg:col-span-7 flex flex-col gap-3 min-h-0">
+
+            <!-- CODE DISPLAY & LINE STEPPER -->
+            <div
+                class="flex-1 bg-slate-900/90 rounded-2xl border border-slate-700/80 flex flex-col overflow-hidden shadow-2xl">
+                <!-- Code Header -->
+                <div
+                    class="bg-slate-800/80 px-4 py-2.5 border-b border-slate-700/80 flex items-center justify-between shrink-0">
+                    <div class="flex items-center gap-2 font-mono text-xs text-slate-300">
+                        <i class="fa-brands fa-java text-amber-500 text-sm"></i>
+                        <span id="code-filename" class="font-semibold text-slate-200">MainProgram.java</span>
+                    </div>
+                    <div id="step-action-pill"
+                        class="text-xs font-mono px-2.5 py-1 rounded-md bg-slate-800 text-sky-300 border border-slate-700 flex items-center gap-1.5">
+                        <i class="fa-solid fa-play text-sky-400 text-[10px]"></i> Ready to execute
+                    </div>
+                </div>
+
+                <!-- Synchronized Code Line Viewer -->
+                <div id="code-lines-wrapper" class="flex-1 overflow-y-auto font-mono text-xs py-2 select-text">
+                    <!-- Code lines dynamically generated here -->
+                </div>
+
+                <!-- Explanation Banner (Plain English execution status) -->
+                <div class="bg-slate-800/90 border-t border-slate-700/80 px-4 py-3 flex items-start gap-3 shrink-0">
+                    <div class="p-2 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20 shrink-0 mt-0.5">
+                        <i class="fa-solid fa-circle-info text-sm"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="text-[11px] font-semibold uppercase tracking-wider text-sky-400 mb-0.5">Stack Trace
+                            Explanation</div>
+                        <p id="step-description" class="text-xs text-slate-200 leading-relaxed font-sans">
+                            Click <strong>Next Step</strong> or <strong>Play</strong> to begin executing the
+                            <code>main()</code> entry point.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EXECUTION CONTROLS BAR -->
+            <div
+                class="bg-slate-800/80 rounded-xl border border-slate-700/80 p-3 flex flex-col gap-2 shrink-0 shadow-lg">
+                <div class="flex items-center justify-between gap-3">
+                    <!-- Main Stepper Buttons -->
+                    <div class="flex items-center gap-2">
+                        <button id="btn-reset"
+                            class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-600"
+                            title="Reset to start">
+                            <i class="fa-solid fa-rotate-left"></i> Reset
+                        </button>
+
+                        <button id="btn-prev"
+                            class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-600 disabled:opacity-40 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-chevron-left"></i> Prev
+                        </button>
+
+                        <button id="btn-next"
+                            class="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-lg transition shadow-md shadow-sky-600/30 flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
+                            Next <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+
+                        <button id="btn-play"
+                            class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition shadow-md shadow-indigo-600/30 flex items-center gap-1.5">
+                            <i class="fa-solid fa-play" id="play-icon"></i> <span id="play-text">Auto Play</span>
+                        </button>
+                    </div>
+
+                    <!-- Speed & Step Counter -->
+                    <div class="flex items-center gap-4 text-xs">
+                        <!-- Playback Speed -->
+                        <div
+                            class="flex items-center gap-1.5 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-700">
+                            <i class="fa-solid fa-gauge-high text-slate-400"></i>
+                            <span class="text-slate-400 font-medium">Speed:</span>
+                            <select id="speed-select"
+                                class="bg-transparent text-slate-200 font-semibold focus:outline-none cursor-pointer">
+                                <option value="1500">0.75x</option>
+                                <option value="1000" selected>1.0x</option>
+                                <option value="600">1.5x</option>
+                                <option value="300">2.5x</option>
+                            </select>
+                        </div>
+
+                        <!-- Step Counter Indicator -->
+                        <div class="font-mono text-slate-400 bg-slate-900 px-3 py-1 rounded-lg border border-slate-700">
+                            Step <span id="current-step-num" class="text-sky-400 font-bold">0</span> / <span
+                                id="total-steps-num">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timeline Scrub Slider -->
+                <div class="flex items-center gap-3 pt-1">
+                    <span class="text-[10px] font-mono text-slate-500">START</span>
+                    <input type="range" id="timeline-slider" min="0" max="100" value="0"
+                        class="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-sky-400">
+                    <span class="text-[10px] font-mono text-slate-500">END</span>
+                </div>
+            </div>
+
+            <!-- TERMINAL / CONSOLE OUTPUT -->
+            <div
+                class="h-24 bg-black/70 rounded-xl border border-slate-800 p-2.5 flex flex-col font-mono text-xs shrink-0 overflow-hidden">
+                <div
+                    class="text-[10px] font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-800 pb-1 mb-1 flex items-center justify-between">
+                    <span><i class="fa-solid fa-terminal mr-1"></i> Program Standard Console Output</span>
+                    <button id="btn-clear-console" class="hover:text-slate-300 transition"><i
+                            class="fa-solid fa-trash-can"></i> Clear</button>
+                </div>
+                <div id="console-output"
+                    class="flex-1 overflow-y-auto space-y-0.5 text-emerald-400 font-mono text-[11px]">
+                    <span class="text-slate-600 italic">// Output from System.out.println() calls will appear
+                        here...</span>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- EDIT CODE / CUSTOM STEP MODAL -->
+    <div id="editor-modal"
+        class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div
+            class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 bg-slate-800/80 border-b border-slate-700 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-code text-sky-400"></i>
+                    <h3 class="font-bold text-white">Custom Program & Call Trace Editor</h3>
+                </div>
+                <button id="btn-close-modal" class="text-slate-400 hover:text-white text-lg transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6 overflow-y-auto space-y-4">
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    You can view or edit the exact code string and execution sequence. Below is the multi-level method
+                    structure demonstrating 4 distinct calls in <code>main()</code> with support methods going up to 3
+                    levels deep.
+                </p>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Source Code Display (Java / C#
+                        Syntax):</label>
+                    <textarea id="custom-code-text" rows="12"
+                        class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-200 focus:outline-none focus:border-sky-500 leading-relaxed"></textarea>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-3 bg-slate-800/80 border-t border-slate-700 flex justify-end gap-3">
+                <button id="btn-cancel-modal"
+                    class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold rounded-lg">Cancel</button>
+                <button id="btn-apply-code"
+                    class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-lg shadow-md">Apply
+                    & Reload Visualizer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * PRESET PROGRAMS WITH DETAILED STEP TRACES
+         * Each program defines:
+         * - title, filename
+         * - code: array of string lines
+         * - steps: sequence of execution snapshots
+         */
+        const PRESET_PROGRAMS = {
+            'deep-calls': {
+                filename: 'MainProgram.java',
+                code: [
+                    'public class MainProgram {',
+                    '    public static void main(String[] args) {',
+                    '        System.out.println("Starting main pipeline...");',
+                    '        ',
+                    '        // --- CALL 1: User Account Processing (Level 1 -> 2 -> 3) ---',
+                    '        double balance1 = processUserAccount("Alice", 100.0);',
+                    '        ',
+                    '        // --- CALL 2: String Report Formatting (Level 1 -> 2 -> 3) ---',
+                    '        String rep = formatReport("Alice", balance1);',
+                    '        ',
+                    '        // --- CALL 3: Security & Audit Verification (Level 1 -> 2 -> 3) ---',
+                    '        boolean valid = auditTransaction("TX-9981", balance1);',
+                    '        ',
+                    '        // --- CALL 4: Session Finalization (Level 1 -> 2) ---',
+                    '        finalizeSession("Alice", valid);',
+                    '        ',
+                    '        System.out.println("All 4 main calls completed successfully!");',
+                    '    }',
+                    '',
+                    '    // --- SUPPORT METHOD CHAIN 1 ---',
+                    '    static double processUserAccount(String user, double amount) {',
+                    '        double bonus = calculateInterest(amount, 0.05);',
+                    '        double finalBal = amount + bonus;',
+                    '        return finalBal;',
+                    '    }',
+                    '',
+                    '    static double calculateInterest(double principal, double rate) {',
+                    '        double rawInterest = principal * rate;',
+                    '        double taxBonus = applyTaxBonus(rawInterest);',
+                    '        return rawInterest + taxBonus;',
+                    '    }',
+                    '',
+                    '    static double applyTaxBonus(double value) {',
+                    '        double net = value * 1.10; // 10% tax credit',
+                    '        return net;',
+                    '    }',
+                    '',
+                    '    // --- SUPPORT METHOD CHAIN 2 ---',
+                    '    static String formatReport(String name, double total) {',
+                    '        String header = padTitle(name);',
+                    '        return header + " Total: $" + total;',
+                    '    }',
+                    '',
+                    '    static String padTitle(String text) {',
+                    '        String border = generateBorder(\'*\', 5);',
+                    '        return border + " " + text + " " + border;',
+                    '    }',
+                    '',
+                    '    static String generateBorder(char ch, font int len) {',
+                    '        return "*****"; // simplified repeat',
+                    '    }',
+                    '',
+                    '    // --- SUPPORT METHOD CHAIN 3 ---',
+                    '    static boolean auditTransaction(String txId, double amount) {',
+                    '        String hash = computeHash(txId);',
+                    '        return hash.length() > 0 && amount > 0;',
+                    '    }',
+                    '',
+                    '    static String computeHash(String data) {',
+                    '        String salt = fetchSalt();',
+                    '        return "HASH[" + data + " + " + salt + "]";',
+                    '    }',
+                    '',
+                    '    static String fetchSalt() {',
+                    '        return "SECURE_SALT_99";',
+                    '    }',
+                    '',
+                    '    // --- SUPPORT METHOD CHAIN 4 ---',
+                    '    static void finalizeSession(String user, boolean status) {',
+                    '        logActivity("Session closed for " + user + ", Success=" + status);',
+                    '    }',
+                    '',
+                    '    static void logActivity(String msg) {',
+                    '        System.out.println("[LOG] " + msg);',
+                    '    }',
+                    '}'
+                ],
+                steps: [
+                    {
+                        line: 2,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: {}, line: 2, level: 1 }
+                        ],
+                        action: 'ENTRY POINT',
+                        desc: 'Program starts. <code>main()</code> frame is pushed onto the call stack as Level 1.',
+                        console: null
+                    },
+                    {
+                        line: 3,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: {}, line: 3, level: 1 }
+                        ],
+                        action: 'EXECUTE LINE',
+                        desc: 'Executing line 3: Printing initial status message.',
+                        console: 'Starting main pipeline...'
+                    },
+                    // --- CALL 1 ---
+                    {
+                        line: 6,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: {}, line: 6, level: 1 }
+                        ],
+                        action: 'METHOD CALL (1 of 4)',
+                        desc: 'Main Call #1: Invoking <code>processUserAccount("Alice", 100.0)</code>.',
+                        console: null
+                    },
+                    {
+                        line: 22,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: {}, line: 6, level: 1 },
+                            { id: 'f2', name: 'processUserAccount', args: { user: '"Alice"', amount: '100.0' }, locals: {}, line: 22, level: 2 }
+                        ],
+                        action: 'PUSH FRAME',
+                        desc: 'Frame for <code>processUserAccount</code> is pushed (Level 2). Parameters <code>user</code> and <code>amount</code> initialized.',
+                        console: null
+                    },
+                    {
+                        line: 22,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: {}, line: 6, level: 1 },
+                            { id: 'f2', name: 'processUserAccount', args: { user: '"Alice"', amount: '100.0' }, locals: {}, line: 22, level: 2 }
+                        ],
+                        action: 'SUB-CALL (Level 2 -> 3)',
+                        desc: 'Inside <code>processUserAccount</code>: Invoking support method <code>calculateInterest(100.0, 0.05)</code>.',
+                        console: null
+                    },
+                    {
+                        line: 28,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: {}, line: 6, level: 1 },
+                            { id: 'f2', name: 'processUserAccount', args: { user: '"Alice"', amount: '100.0' }, locals: {}, line: 22, level: 2 },
+                            { id: 'f3', name: 'calculateInterest', args: { principal: '100.0', rate: '0.05' }, locals: {}, line: 28, level: 3 }
+                        ],
+                        action: 'PUSH FRAME',
+                        desc: 'Frame for <code>calculateInterest</code> pushed (Level 3 deep!). Stack size is now 3.',
+                        console: null
+                    },
+                    {
+                        line: 29,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: {}, line: 6, level: 1 },
+                            { id: 'f2', name: 'processUserAccount', args: { user: '"Alice"', amount: '100.0' }, locals: {}, line: 22, level: 2 },
+                            { id: 'f3', name: 'calculateInterest', args: { principal: '100.0', rate: '0.05' }, locals: { rawInterest: '5.0' }, line: 29, level: 3 }
+                        ],
+                        action: 'LOCAL VARIABLE',
+                        desc: 'Calculated <code>rawInterest = 5.0</code>. Now calling 3rd-level support method <code>applyTaxBonus(5.0)</code>.',
+                        console: null
+                    },
+                    {
+                        line: 35,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: {}, line: 6, level: 1 },
+                            { id: 'f2', name: 'processUserAccount', args: { user: '"Alice"', amount: '100.0' }, locals: {}, line: 22, level: 2 },
+                            { id: 'f3', name: 'calculateInterest', args: { principal: '100.0', rate: '0.05' }, locals: { rawInterest: '5.0' }, line: 29, level: 3 },
+                            { id: 'f4', name: 'applyTaxBonus', args: { value: '5.0' }, locals: {}, line: 35, level: 4 }
+                        ],
+                        action: 'PUSH FRAME (LEVEL 4)',
+                        desc: 'Frame for <code>applyTaxBonus</code> pushed (Level 4 maximum depth!). Notice how local variables in callers are preserved below.',
+                        console: null
+                    },
+                    {
+                        line: 36,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: {}, line: 6, level: 1 },
+                            { id: 'f2', name: 'processUserAccount', args: { user: '"Alice"', amount: '100.0' }, locals: {}, line: 22, level: 2 },
+                            { id: 'f3', name: 'calculateInterest', args: { principal: '100.0', rate: '0.05' }, locals: { rawInterest: '5.0' }, line: 29, level: 3 },
+                            { id: 'f4', name: 'applyTaxBonus', args: { value: '5.0' }, locals: { net: '5.50' }, line: 36, level: 4 }
+                        ],
+                        action: 'RETURN VALUE',
+                        desc: '<code>applyTaxBonus</code> finishes calculation: <code>net = 5.50</code>. Returning control & value <code>5.50</code> back to caller.',
+                        console: null
+                    },
+                    {
+                        line: 30,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: {}, line: 6, level: 1 },
+                            { id: 'f2', name: 'processUserAccount', args: { user: '"Alice"', amount: '100.0' }, locals: {}, line: 22, level: 2 },
+                            { id: 'f3', name: 'calculateInterest', args: { principal: '100.0', rate: '0.05' }, locals: { rawInterest: '5.0', taxBonus: '5.50' }, line: 30, level: 3 }
+                        ],
+                        action: 'POP FRAME',
+                        desc: '<code>applyTaxBonus</code> popped off top of stack! Control returns to <code>calculateInterest</code>. <code>taxBonus = 5.50</code>.',
+                        console: null
+                    },
+                    {
+                        line: 23,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: {}, line: 6, level: 1 },
+                            { id: 'f2', name: 'processUserAccount', args: { user: '"Alice"', amount: '100.0' }, locals: { bonus: '10.50' }, line: 23, level: 2 }
+                        ],
+                        action: 'POP FRAME',
+                        desc: '<code>calculateInterest</code> returns <code>10.50</code> and pops off. Back inside <code>processUserAccount</code> with <code>bonus = 10.50</code>.',
+                        console: null
+                    },
+                    {
+                        line: 24,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: {}, line: 6, level: 1 },
+                            { id: 'f2', name: 'processUserAccount', args: { user: '"Alice"', amount: '100.0' }, locals: { bonus: '10.50', finalBal: '110.50' }, line: 24, level: 2 }
+                        ],
+                        action: 'RETURN TO MAIN',
+                        desc: '<code>processUserAccount</code> computes <code>finalBal = 110.50</code> and returns to <code>main()</code>.',
+                        console: null
+                    },
+                    {
+                        line: 6,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50' }, line: 6, level: 1 }
+                        ],
+                        action: 'POP FRAME -> MAIN',
+                        desc: 'Call #1 complete! Frame popped. Back in <code>main()</code> with local variable <code>balance1 = 110.50</code>.',
+                        console: null
+                    },
+
+                    // --- CALL 2 ---
+                    {
+                        line: 9,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50' }, line: 9, level: 1 }
+                        ],
+                        action: 'METHOD CALL (2 of 4)',
+                        desc: 'Main Call #2: Invoking <code>formatReport("Alice", 110.50)</code>.',
+                        console: null
+                    },
+                    {
+                        line: 41,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50' }, line: 9, level: 1 },
+                            { id: 'f2_2', name: 'formatReport', args: { name: '"Alice"', total: '110.50' }, locals: {}, line: 41, level: 2 }
+                        ],
+                        action: 'PUSH FRAME',
+                        desc: 'Pushing frame for <code>formatReport</code> (Level 2). Now calling helper method <code>padTitle("Alice")</code>.',
+                        console: null
+                    },
+                    {
+                        line: 46,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50' }, line: 9, level: 1 },
+                            { id: 'f2_2', name: 'formatReport', args: { name: '"Alice"', total: '110.50' }, locals: {}, line: 41, level: 2 },
+                            { id: 'f3_2', name: 'padTitle', args: { text: '"Alice"' }, locals: {}, line: 46, level: 3 }
+                        ],
+                        action: 'PUSH FRAME (LEVEL 3)',
+                        desc: 'Pushing frame for <code>padTitle</code> (Level 3). It will call <code>generateBorder(\'*\', 5)</code>.',
+                        console: null
+                    },
+                    {
+                        line: 51,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50' }, line: 9, level: 1 },
+                            { id: 'f2_2', name: 'formatReport', args: { name: '"Alice"', total: '110.50' }, locals: {}, line: 41, level: 2 },
+                            { id: 'f3_2', name: 'padTitle', args: { text: '"Alice"' }, locals: {}, line: 46, level: 3 },
+                            { id: 'f4_2', name: 'generateBorder', args: { ch: "'*'", len: '5' }, locals: {}, line: 51, level: 4 }
+                        ],
+                        action: 'PUSH FRAME (LEVEL 4)',
+                        desc: 'Pushing frame for <code>generateBorder</code> (Level 4). It computes string padding.',
+                        console: null
+                    },
+                    {
+                        line: 47,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50' }, line: 9, level: 1 },
+                            { id: 'f2_2', name: 'formatReport', args: { name: '"Alice"', total: '110.50' }, locals: {}, line: 41, level: 2 },
+                            { id: 'f3_2', name: 'padTitle', args: { text: '"Alice"' }, locals: { border: '"*****"' }, line: 47, level: 3 }
+                        ],
+                        action: 'POP FRAME',
+                        desc: '<code>generateBorder</code> returns <code>"*****"</code> and pops off. <code>padTitle</code> constructs header.',
+                        console: null
+                    },
+                    {
+                        line: 42,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50' }, line: 9, level: 1 },
+                            { id: 'f2_2', name: 'formatReport', args: { name: '"Alice"', total: '110.50' }, locals: { header: '"***** Alice *****"' }, line: 42, level: 2 }
+                        ],
+                        action: 'POP FRAME',
+                        desc: '<code>padTitle</code> returns string to <code>formatReport</code>. Constructing full report output.',
+                        console: null
+                    },
+                    {
+                        line: 9,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50', rep: '"***** Alice ***** Total: $110.50"' }, line: 9, level: 1 }
+                        ],
+                        action: 'POP FRAME -> MAIN',
+                        desc: 'Call #2 complete! Frame popped. Local variable <code>rep</code> initialized in <code>main()</code>.',
+                        console: null
+                    },
+
+                    // --- CALL 3 ---
+                    {
+                        line: 12,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50', rep: '"***** Alice ***** Total: $110.50"' }, line: 12, level: 1 }
+                        ],
+                        action: 'METHOD CALL (3 of 4)',
+                        desc: 'Main Call #3: Invoking <code>auditTransaction("TX-9981", 110.50)</code>.',
+                        console: null
+                    },
+                    {
+                        line: 56,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50', rep: '"..."' }, line: 12, level: 1 },
+                            { id: 'f2_3', name: 'auditTransaction', args: { txId: '"TX-9981"', amount: '110.50' }, locals: {}, line: 56, level: 2 }
+                        ],
+                        action: 'PUSH FRAME',
+                        desc: 'Pushing frame for <code>auditTransaction</code> (Level 2). Calling support method <code>computeHash("TX-9981")</code>.',
+                        console: null
+                    },
+                    {
+                        line: 61,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50', rep: '"..."' }, line: 12, level: 1 },
+                            { id: 'f2_3', name: 'auditTransaction', args: { txId: '"TX-9981"', amount: '110.50' }, locals: {}, line: 56, level: 2 },
+                            { id: 'f3_3', name: 'computeHash', args: { data: '"TX-9981"' }, locals: {}, line: 61, level: 3 }
+                        ],
+                        action: 'PUSH FRAME (LEVEL 3)',
+                        desc: 'Pushing frame for <code>computeHash</code> (Level 3). Calling 3rd-level method <code>fetchSalt()</code>.',
+                        console: null
+                    },
+                    {
+                        line: 66,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50', rep: '"..."' }, line: 12, level: 1 },
+                            { id: 'f2_3', name: 'auditTransaction', args: { txId: '"TX-9981"', amount: '110.50' }, locals: {}, line: 56, level: 2 },
+                            { id: 'f3_3', name: 'computeHash', args: { data: '"TX-9981"' }, locals: {}, line: 61, level: 3 },
+                            { id: 'f4_3', name: 'fetchSalt', args: {}, locals: {}, line: 66, level: 4 }
+                        ],
+                        action: 'PUSH FRAME (LEVEL 4)',
+                        desc: 'Pushing frame for <code>fetchSalt</code> (Level 4). Stack is at maximum height again!',
+                        console: null
+                    },
+                    {
+                        line: 62,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50', rep: '"..."' }, line: 12, level: 1 },
+                            { id: 'f2_3', name: 'auditTransaction', args: { txId: '"TX-9981"', amount: '110.50' }, locals: {}, line: 56, level: 2 },
+                            { id: 'f3_3', name: 'computeHash', args: { data: '"TX-9981"' }, locals: { salt: '"SECURE_SALT_99"' }, line: 62, level: 3 }
+                        ],
+                        action: 'POP FRAME',
+                        desc: '<code>fetchSalt</code> pops off. Control returns to <code>computeHash</code> with salt value.',
+                        console: null
+                    },
+                    {
+                        line: 57,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50', rep: '"..."' }, line: 12, level: 1 },
+                            { id: 'f2_3', name: 'auditTransaction', args: { txId: '"TX-9981"', amount: '110.50' }, locals: { hash: '"HASH[TX-9981...]"' }, line: 57, level: 2 }
+                        ],
+                        action: 'POP FRAME',
+                        desc: '<code>computeHash</code> pops off. Returning boolean result to <code>auditTransaction</code>.',
+                        console: null
+                    },
+                    {
+                        line: 12,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50', rep: '"..."', valid: 'true' }, line: 12, level: 1 }
+                        ],
+                        action: 'POP FRAME -> MAIN',
+                        desc: 'Call #3 complete! Frame popped. <code>valid = true</code> stored in <code>main()</code>.',
+                        console: null
+                    },
+
+                    // --- CALL 4 ---
+                    {
+                        line: 15,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50', rep: '"..."', valid: 'true' }, line: 15, level: 1 }
+                        ],
+                        action: 'METHOD CALL (4 of 4)',
+                        desc: 'Main Call #4: Invoking <code>finalizeSession("Alice", true)</code>.',
+                        console: null
+                    },
+                    {
+                        line: 71,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50', rep: '"..."', valid: 'true' }, line: 15, level: 1 },
+                            { id: 'f2_4', name: 'finalizeSession', args: { user: '"Alice"', status: 'true' }, locals: {}, line: 71, level: 2 }
+                        ],
+                        action: 'PUSH FRAME',
+                        desc: 'Pushing frame for <code>finalizeSession</code> (Level 2). Calling <code>logActivity(...)</code>.',
+                        console: null
+                    },
+                    {
+                        line: 75,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50', rep: '"..."', valid: 'true' }, line: 15, level: 1 },
+                            { id: 'f2_4', name: 'finalizeSession', args: { user: '"Alice"', status: 'true' }, locals: {}, line: 71, level: 2 },
+                            { id: 'f3_4', name: 'logActivity', args: { msg: '"Session closed for Alice, Success=true"' }, locals: {}, line: 75, level: 3 }
+                        ],
+                        action: 'PUSH FRAME (LEVEL 3)',
+                        desc: 'Pushing frame for <code>logActivity</code> (Level 3). System printing to console.',
+                        console: null
+                    },
+                    {
+                        line: 76,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50', rep: '"..."', valid: 'true' }, line: 15, level: 1 },
+                            { id: 'f2_4', name: 'finalizeSession', args: { user: '"Alice"', status: 'true' }, locals: {}, line: 71, level: 2 },
+                            { id: 'f3_4', name: 'logActivity', args: { msg: '"Session closed for Alice, Success=true"' }, locals: {}, line: 76, level: 3 }
+                        ],
+                        action: 'PRINT CONSOLE',
+                        desc: 'Executing console output print in <code>logActivity</code>.',
+                        console: '[LOG] Session closed for Alice, Success=true'
+                    },
+                    {
+                        line: 15,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50', rep: '"..."', valid: 'true' }, line: 15, level: 1 }
+                        ],
+                        action: 'POP FRAMES -> MAIN',
+                        desc: 'Frames for <code>logActivity</code> and <code>finalizeSession</code> popped off.',
+                        console: null
+                    },
+                    {
+                        line: 17,
+                        stack: [
+                            { id: 'f1', name: 'main', args: { args: 'String[0]' }, locals: { balance1: '110.50', rep: '"..."', valid: 'true' }, line: 17, level: 1 }
+                        ],
+                        action: 'FINALIZE MAIN',
+                        desc: 'Executing final line of <code>main()</code>.',
+                        console: 'All 4 main calls completed successfully!'
+                    },
+                    {
+                        line: 18,
+                        stack: [],
+                        action: 'PROGRAM END',
+                        desc: '<code>main()</code> finishes and pops off the call stack. Program execution terminates naturally.',
+                        console: null
+                    }
+                ]
+            },
+
+            'recursion': {
+                filename: 'RecursionDemo.java',
+                code: [
+                    'public class RecursionDemo {',
+                    '    public static void main(String[] args) {',
+                    '        System.out.println("Calculating factorial(4)...");',
+                    '        int result = factorial(4);',
+                    '        System.out.println("Result = " + result);',
+                    '    }',
+                    '',
+                    '    static int factorial(int n) {',
+                    '        if (n <= 1) {',
+                    '            return 1; // Base case',
+                    '        }',
+                    '        int subProblem = factorial(n - 1);',
+                    '        return n * subProblem;',
+                    '    }',
+                    '}'
+                ],
+                steps: [
+                    {
+                        line: 2,
+                        stack: [{ id: 'm', name: 'main', args: {}, locals: {}, line: 2, level: 1 }],
+                        action: 'ENTRY POINT',
+                        desc: 'Main starts execution.',
+                        console: null
+                    },
+                    {
+                        line: 3,
+                        stack: [{ id: 'm', name: 'main', args: {}, locals: {}, line: 3, level: 1 }],
+                        action: 'PRINT',
+                        desc: 'Printing calculation header.',
+                        console: 'Calculating factorial(4)...'
+                    },
+                    {
+                        line: 4,
+                        stack: [{ id: 'm', name: 'main', args: {}, locals: {}, line: 4, level: 1 }],
+                        action: 'CALL factorial(4)',
+                        desc: 'Main calls <code>factorial(4)</code>.',
+                        console: null
+                    },
+                    {
+                        line: 8,
+                        stack: [
+                            { id: 'm', name: 'main', args: {}, locals: {}, line: 4, level: 1 },
+                            { id: 'f4', name: 'factorial', args: { n: '4' }, locals: {}, line: 8, level: 2 }
+                        ],
+                        action: 'RECURSIVE PUSH (n=4)',
+                        desc: 'Pushing frame for <code>factorial(n=4)</code>.',
+                        console: null
+                    },
+                    {
+                        line: 12,
+                        stack: [
+                            { id: 'm', name: 'main', args: {}, locals: {}, line: 4, level: 1 },
+                            { id: 'f4', name: 'factorial', args: { n: '4' }, locals: {}, line: 12, level: 2 }
+                        ],
+                        action: 'RECURSIVE CALL',
+                        desc: '<code>factorial(4)</code> calls <code>factorial(3)</code>.',
+                        console: null
+                    },
+                    {
+                        line: 8,
+                        stack: [
+                            { id: 'm', name: 'main', args: {}, locals: {}, line: 4, level: 1 },
+                            { id: 'f4', name: 'factorial', args: { n: '4' }, locals: {}, line: 12, level: 2 },
+                            { id: 'f3', name: 'factorial', args: { n: '3' }, locals: {}, line: 8, level: 3 }
+                        ],
+                        action: 'RECURSIVE PUSH (n=3)',
+                        desc: 'Pushing frame for <code>factorial(n=3)</code>. Call stack growing!',
+                        console: null
+                    },
+                    {
+                        line: 12,
+                        stack: [
+                            { id: 'm', name: 'main', args: {}, locals: {}, line: 4, level: 1 },
+                            { id: 'f4', name: 'factorial', args: { n: '4' }, locals: {}, line: 12, level: 2 },
+                            { id: 'f3', name: 'factorial', args: { n: '3' }, locals: {}, line: 12, level: 3 }
+                        ],
+                        action: 'RECURSIVE CALL',
+                        desc: '<code>factorial(3)</code> calls <code>factorial(2)</code>.',
+                        console: null
+                    },
+                    {
+                        line: 8,
+                        stack: [
+                            { id: 'm', name: 'main', args: {}, locals: {}, line: 4, level: 1 },
+                            { id: 'f4', name: 'factorial', args: { n: '4' }, locals: {}, line: 12, level: 2 },
+                            { id: 'f3', name: 'factorial', args: { n: '3' }, locals: {}, line: 12, level: 3 },
+                            { id: 'f2', name: 'factorial', args: { n: '2' }, locals: {}, line: 8, level: 4 }
+                        ],
+                        action: 'RECURSIVE PUSH (n=2)',
+                        desc: 'Pushing frame for <code>factorial(n=2)</code>.',
+                        console: null
+                    },
+                    {
+                        line: 12,
+                        stack: [
+                            { id: 'm', name: 'main', args: {}, locals: {}, line: 4, level: 1 },
+                            { id: 'f4', name: 'factorial', args: { n: '4' }, locals: {}, line: 12, level: 2 },
+                            { id: 'f3', name: 'factorial', args: { n: '3' }, locals: {}, line: 12, level: 3 },
+                            { id: 'f2', name: 'factorial', args: { n: '2' }, locals: {}, line: 12, level: 4 }
+                        ],
+                        action: 'RECURSIVE CALL',
+                        desc: '<code>factorial(2)</code> calls <code>factorial(1)</code>.',
+                        console: null
+                    },
+                    {
+                        line: 8,
+                        stack: [
+                            { id: 'm', name: 'main', args: {}, locals: {}, line: 4, level: 1 },
+                            { id: 'f4', name: 'factorial', args: { n: '4' }, locals: {}, line: 12, level: 2 },
+                            { id: 'f3', name: 'factorial', args: { n: '3' }, locals: {}, line: 12, level: 3 },
+                            { id: 'f2', name: 'factorial', args: { n: '2' }, locals: {}, line: 12, level: 4 },
+                            { id: 'f1', name: 'factorial', args: { n: '1' }, locals: {}, line: 8, level: 5 }
+                        ],
+                        action: 'BASE CASE REACHED',
+                        desc: 'Pushing frame for <code>factorial(n=1)</code>. Reached base case condition (n <= 1)!',
+                        console: null
+                    },
+                    {
+                        line: 10,
+                        stack: [
+                            { id: 'm', name: 'main', args: {}, locals: {}, line: 4, level: 1 },
+                            { id: 'f4', name: 'factorial', args: { n: '4' }, locals: {}, line: 12, level: 2 },
+                            { id: 'f3', name: 'factorial', args: { n: '3' }, locals: {}, line: 12, level: 3 },
+                            { id: 'f2', name: 'factorial', args: { n: '2' }, locals: {}, line: 12, level: 4 },
+                            { id: 'f1', name: 'factorial', args: { n: '1' }, locals: {}, line: 10, level: 5 }
+                        ],
+                        action: 'RETURN 1',
+                        desc: 'Base case returns <code>1</code>. Now unwinding the recursive call stack!',
+                        console: null
+                    },
+                    {
+                        line: 13,
+                        stack: [
+                            { id: 'm', name: 'main', args: {}, locals: {}, line: 4, level: 1 },
+                            { id: 'f4', name: 'factorial', args: { n: '4' }, locals: {}, line: 12, level: 2 },
+                            { id: 'f3', name: 'factorial', args: { n: '3' }, locals: {}, line: 12, level: 3 },
+                            { id: 'f2', name: 'factorial', args: { n: '2' }, locals: { subProblem: '1' }, line: 13, level: 4 }
+                        ],
+                        action: 'UNWIND STACK',
+                        desc: 'Frame <code>n=1</code> popped. In <code>n=2</code>, <code>subProblem = 1</code>. Returning <code>2 * 1 = 2</code>.',
+                        console: null
+                    },
+                    {
+                        line: 13,
+                        stack: [
+                            { id: 'f1', name: 'main', args: {}, locals: {}, line: 4, level: 1 },
+                            { id: 'f4', name: 'factorial', args: { n: '4' }, locals: {}, line: 12, level: 2 },
+                            { id: 'f3', name: 'factorial', args: { n: '3' }, locals: { subProblem: '2' }, line: 13, level: 3 }
+                        ],
+                        action: 'UNWIND STACK',
+                        desc: 'Frame <code>n=2</code> popped. In <code>n=3</code>, <code>subProblem = 2</code>. Returning <code>3 * 2 = 6</code>.',
+                        console: null
+                    },
+                    {
+                        line: 13,
+                        stack: [
+                            { id: 'f1', name: 'main', args: {}, locals: {}, line: 4, level: 1 },
+                            { id: 'f4', name: 'factorial', args: { n: '4' }, locals: { subProblem: '6' }, line: 13, level: 2 }
+                        ],
+                        action: 'UNWIND STACK',
+                        desc: 'Frame <code>n=3</code> popped. In <code>n=4</code>, <code>subProblem = 6</code>. Returning <code>4 * 6 = 24</code>.',
+                        console: null
+                    },
+                    {
+                        line: 4,
+                        stack: [
+                            { id: 'f1', name: 'main', args: {}, locals: { result: '24' }, line: 4, level: 1 }
+                        ],
+                        action: 'RETURN TO MAIN',
+                        desc: 'All recursive frames popped off stack! Back in <code>main()</code> with <code>result = 24</code>.',
+                        console: null
+                    },
+                    {
+                        line: 5,
+                        stack: [
+                            { id: 'f1', name: 'main', args: {}, locals: { result: '24' }, line: 5, level: 1 }
+                        ],
+                        action: 'PRINT RESULT',
+                        desc: 'Printing final result to console output.',
+                        console: 'Result = 24'
+                    },
+                    {
+                        line: 6,
+                        stack: [],
+                        action: 'PROGRAM COMPLETE',
+                        desc: 'Program execution completed.',
+                        console: null
+                    }
+                ]
+            }
+        };
+
+        let currentPreset = 'deep-calls';
+        let currentStepIndex = 0;
+        let isPlaying = false;
+        let playInterval = null;
+        let stepSpeed = 1000;
+
+        // DOM Elements
+        const stackContainer = document.getElementById('stack-container');
+        const codeWrapper = document.getElementById('code-lines-wrapper');
+        const stepDescription = document.getElementById('step-description');
+        const stepActionPill = document.getElementById('step-action-pill');
+        const currentStepNum = document.getElementById('current-step-num');
+        const totalStepsNum = document.getElementById('total-steps-num');
+        const timelineSlider = document.getElementById('timeline-slider');
+        const consoleOutput = document.getElementById('console-output');
+        const depthGaugeBar = document.getElementById('depth-gauge-bar');
+        const depthGaugeText = document.getElementById('depth-gauge-text');
+        const stackCountBadge = document.getElementById('stack-count-badge');
+        const presetSelect = document.getElementById('preset-select');
+
+        // Buttons
+        const btnReset = document.getElementById('btn-reset');
+        const btnPrev = document.getElementById('btn-prev');
+        const btnNext = document.getElementById('btn-next');
+        const btnPlay = document.getElementById('btn-play');
+        const playIcon = document.getElementById('play-icon');
+        const playText = document.getElementById('play-text');
+        const speedSelect = document.getElementById('speed-select');
+        const btnClearConsole = document.getElementById('btn-clear-console');
+
+        // Modal elements
+        const editorModal = document.getElementById('editor-modal');
+        const btnOpenEditor = document.getElementById('btn-open-editor');
+        const btnCloseModal = document.getElementById('btn-close-modal');
+        const btnCancelModal = document.getElementById('btn-cancel-modal');
+        const btnApplyCode = document.getElementById('btn-apply-code');
+        const customCodeText = document.getElementById('custom-code-text');
+
+
+        /**
+         * Render code lines in the code panel
+         */
+        function renderCodePanel(codeLines) {
+            codeWrapper.innerHTML = '';
+            codeLines.forEach((lineText, idx) => {
+                const lineNum = idx + 1;
+                const lineEl = document.createElement('div');
+                lineEl.id = `code-line-${lineNum}`;
+                lineEl.className = `flex items-center px-4 py-1 border-l-4 border-transparent transition-all duration-150 hover:bg-slate-800/50`;
+
+                lineEl.innerHTML = `
+                    <span class="w-8 text-slate-600 font-mono text-right mr-4 text-[11px] select-none shrink-0">${lineNum}</span>
+                    <span class="font-mono text-slate-300 whitespace-pre flex-1">${escapeHtml(lineText)}</span>
+                    <span class="active-arrow text-sky-400 font-bold opacity-0 transition-opacity ml-2 text-[10px] shrink-0">
+                        <i class="fa-solid fa-arrow-left"></i> ACTIVE
+                    </span>
+                `;
+                codeWrapper.appendChild(lineEl);
+            });
+        }
+
+        /**
+         * Escape HTML string
+         */
+        function escapeHtml(str) {
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        /**
+         * Render state at current step
+         */
+        function renderStep(stepIdx) {
+            const prog = PRESET_PROGRAMS[currentPreset];
+            const step = prog.steps[stepIdx];
+
+            if (!step) return;
+
+            currentStepNum.innerText = stepIdx + 1;
+            totalStepsNum.innerText = prog.steps.length;
+            timelineSlider.value = Math.round((stepIdx / (prog.steps.length - 1)) * 100);
+
+            // Update Action Pill & Description
+            stepActionPill.innerHTML = `<i class="fa-solid fa-code-commit text-sky-400"></i> ${step.action}`;
+            stepDescription.innerHTML = step.desc;
+
+            // Highlight Active Code Line
+            const allLines = codeWrapper.querySelectorAll('[id^="code-line-"]');
+            allLines.forEach(el => {
+                el.classList.remove('bg-sky-950/70', 'border-sky-400', 'active-line-glow');
+                const arrow = el.querySelector('.active-arrow');
+                if (arrow) arrow.classList.add('opacity-0');
+            });
+
+            if (step.line) {
+                const activeEl = document.getElementById(`code-line-${step.line}`);
+                if (activeEl) {
+                    activeEl.classList.add('bg-sky-950/70', 'border-sky-400', 'active-line-glow');
+                    const arrow = activeEl.querySelector('.active-arrow');
+                    if (arrow) arrow.classList.remove('opacity-0');
+                    activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }
+
+            // Render Stack Frames
+            renderStackFrames(step.stack);
+
+            // Handle Console output
+            if (step.console) {
+                appendConsoleLog(step.console);
+            }
+
+            // Update button states
+            btnPrev.disabled = (stepIdx === 0);
+            btnNext.disabled = (stepIdx === prog.steps.length - 1);
+        }
+
+        /**
+         * Render Call Stack Cards
+         */
+        function renderStackFrames(stackFrames) {
+            stackContainer.innerHTML = '';
+
+            const maxAllowed = 4;
+            const currentDepth = stackFrames.length;
+
+            // Update depth gauge
+            const depthPercent = Math.min(100, Math.round((currentDepth / maxAllowed) * 100));
+            depthGaugeBar.style.width = `${depthPercent}%`;
+            depthGaugeText.innerText = `${currentDepth} / ${maxAllowed}`;
+            stackCountBadge.innerText = `${currentDepth} Frame${currentDepth === 1 ? '' : 's'}`;
+
+            if (currentDepth === 0) {
+                stackContainer.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-slate-500 py-12 border-2 border-dashed border-slate-700/60 rounded-xl">
+                        <i class="fa-solid fa-layer-group text-3xl mb-2 opacity-40"></i>
+                        <p class="text-xs font-semibold">Call Stack Empty</p>
+                        <p class="text-[11px] text-slate-600">No active method frames in memory</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Render frames from bottom (index 0) to top (last index)
+            // Visually top frame is rendered at top!
+            const reversed = [...stackFrames].reverse();
+
+            reversed.forEach((frame, index) => {
+                const isTopFrame = (index === 0); // Active top frame
+                const frameEl = document.createElement('div');
+
+                frameEl.className = `stack-frame-enter mb-3 rounded-xl border transition-all duration-200 overflow-hidden shadow-lg ${isTopFrame
+                    ? 'bg-gradient-to-r from-slate-800 to-slate-800/95 border-sky-500/80 ring-2 ring-sky-500/30 shadow-sky-500/10'
+                    : 'bg-slate-800/60 border-slate-700 opacity-80 hover:opacity-100'
+                    }`;
+
+                // Parameters list
+                const argKeys = Object.keys(frame.args || {});
+                const argPills = argKeys.length > 0
+                    ? argKeys.map(k => `<span class="bg-slate-900/80 text-sky-300 px-2 py-0.5 rounded border border-slate-700 font-mono text-[11px]">${k} = <strong class="text-amber-300">${frame.args[k]}</strong></span>`).join(' ')
+                    : '<span class="text-slate-500 text-[11px] italic">none</span>';
+
+                // Locals list
+                const localKeys = Object.keys(frame.locals || {});
+                const localPills = localKeys.length > 0
+                    ? localKeys.map(k => `<span class="bg-emerald-950/60 text-emerald-300 px-2 py-0.5 rounded border border-emerald-800/60 font-mono text-[11px]">${k} = <strong class="text-white">${frame.locals[k]}</strong></span>`).join(' ')
+                    : '<span class="text-slate-500 text-[11px] italic">none initialized</span>';
+
+                frameEl.innerHTML = `
+                    <div class="px-3 py-2 ${isTopFrame ? 'bg-sky-600/20 border-b border-sky-500/30' : 'bg-slate-800 border-b border-slate-700'} flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold font-mono ${isTopFrame ? 'bg-sky-500 text-white' : 'bg-slate-700 text-slate-300'
+                    }">${frame.level}</span>
+                            <span class="font-mono font-bold text-xs ${isTopFrame ? 'text-sky-300' : 'text-slate-300'}">
+                                ${frame.name}()
+                            </span>
+                        </div>
+                        <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${isTopFrame ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40' : 'bg-slate-700/60 text-slate-400'
+                    }">
+                            ${isTopFrame ? 'Active Frame' : 'Caller Scope'}
+                        </span>
+                    </div>
+
+                    <div class="p-3 text-xs space-y-2">
+                        <!-- Method Parameters -->
+                        <div class="flex items-start gap-2">
+                            <span class="text-[10px] font-semibold uppercase text-slate-400 w-16 shrink-0 mt-0.5">Parameters:</span>
+                            <div class="flex flex-wrap gap-1.5 flex-1">${argPills}</div>
+                        </div>
+
+                        <!-- Local Variables -->
+                        <div class="flex items-start gap-2 pt-1 border-t border-slate-700/50">
+                            <span class="text-[10px] font-semibold uppercase text-slate-400 w-16 shrink-0 mt-0.5">Locals:</span>
+                            <div class="flex flex-wrap gap-1.5 flex-1">${localPills}</div>
+                        </div>
+                    </div>
+                `;
+
+                stackContainer.appendChild(frameEl);
+            });
+        }
+
+        /**
+         * Append console log
+         */
+        function appendConsoleLog(msg) {
+            const existingLogs = Array.from(consoleOutput.children).map(c => c.innerText);
+            if (existingLogs.includes(msg)) return; // Prevent duplicate appends on step scrub
+
+            const logItem = document.createElement('div');
+            logItem.className = 'flex items-center gap-2 animate-fadeIn';
+            logItem.innerHTML = `<span class="text-emerald-500">&gt;</span> <span>${escapeHtml(msg)}</span>`;
+            consoleOutput.appendChild(logItem);
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+
+        /**
+         * Clear console
+         */
+        function clearConsole() {
+            consoleOutput.innerHTML = '<span class="text-slate-600 italic">// Output cleared...</span>';
+        }
+
+        /**
+         * Start / Stop Auto Play
+         */
+        function toggleAutoPlay() {
+            if (isPlaying) {
+                stopAutoPlay();
+            } else {
+                startAutoPlay();
+            }
+        }
+
+        function startAutoPlay() {
+            const prog = PRESET_PROGRAMS[currentPreset];
+            if (currentStepIndex >= prog.steps.length - 1) {
+                currentStepIndex = 0; // Reset if at end
+            }
+
+            isPlaying = true;
+            playIcon.className = 'fa-solid fa-pause';
+            playText.innerText = 'Pause';
+            btnPlay.classList.replace('bg-indigo-600', 'bg-amber-600');
+            btnPlay.classList.replace('hover:bg-indigo-500', 'hover:bg-amber-500');
+
+            playInterval = setInterval(() => {
+                if (currentStepIndex < prog.steps.length - 1) {
+                    currentStepIndex++;
+                    renderStep(currentStepIndex);
+                } else {
+                    stopAutoPlay();
+                }
+            }, stepSpeed);
+        }
+
+        function stopAutoPlay() {
+            isPlaying = false;
+            if (playInterval) clearInterval(playInterval);
+            playIcon.className = 'fa-solid fa-play';
+            playText.innerText = 'Auto Play';
+            btnPlay.classList.replace('bg-amber-600', 'bg-indigo-600');
+            btnPlay.classList.replace('hover:bg-amber-500', 'hover:bg-indigo-500');
+        }
+
+        /**
+         * Load Preset Program
+         */
+        function loadPreset(presetKey) {
+            stopAutoPlay();
+            currentPreset = presetKey;
+            currentStepIndex = 0;
+            const prog = PRESET_PROGRAMS[currentPreset];
+            document.getElementById('code-filename').innerText = prog.filename;
+            renderCodePanel(prog.code);
+            clearConsole();
+            renderStep(0);
+            customCodeText.value = prog.code.join('\n');
+        }
+
+        // Event Listeners
+        btnNext.addEventListener('click', () => {
+            stopAutoPlay();
+            const prog = PRESET_PROGRAMS[currentPreset];
+            if (currentStepIndex < prog.steps.length - 1) {
+                currentStepIndex++;
+                renderStep(currentStepIndex);
+            }
+        });
+
+        btnPrev.addEventListener('click', () => {
+            stopAutoPlay();
+            if (currentStepIndex > 0) {
+                currentStepIndex--;
+                renderStep(currentStepIndex);
+            }
+        });
+
+        btnReset.addEventListener('click', () => {
+            stopAutoPlay();
+            currentStepIndex = 0;
+            clearConsole();
+            renderStep(0);
+        });
+
+        btnPlay.addEventListener('click', toggleAutoPlay);
+
+        speedSelect.addEventListener('change', (e) => {
+            stepSpeed = parseInt(e.target.value, 10);
+            if (isPlaying) {
+                stopAutoPlay();
+                startAutoPlay();
+            }
+        });
+
+        timelineSlider.addEventListener('input', (e) => {
+            stopAutoPlay();
+            const prog = PRESET_PROGRAMS[currentPreset];
+            const targetIndex = Math.round((e.target.value / 100) * (prog.steps.length - 1));
+            currentStepIndex = targetIndex;
+            renderStep(currentStepIndex);
+        });
+
+        presetSelect.addEventListener('change', (e) => {
+            loadPreset(e.target.value);
+        });
+
+        btnClearConsole.addEventListener('click', clearConsole);
+
+        // Modal Controls
+        btnOpenEditor.addEventListener('click', () => {
+            editorModal.classList.remove('hidden');
+        });
+
+        btnCloseModal.addEventListener('click', () => {
+            editorModal.classList.add('hidden');
+        });
+
+        btnCancelModal.addEventListener('click', () => {
+            editorModal.classList.add('hidden');
+        });
+
+        btnApplyCode.addEventListener('click', () => {
+            const rawCode = customCodeText.value;
+            const codeLines = rawCode.split('\n');
+            PRESET_PROGRAMS[currentPreset].code = codeLines;
+            renderCodePanel(codeLines);
+            editorModal.classList.add('hidden');
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadPreset('deep-calls');
+        });
+    </script>
+</body>
+
+</html>
