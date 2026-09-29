@@ -119,16 +119,9 @@
                 <select id="preset-select"
                     class="bg-transparent text-xs font-semibold text-slate-200 focus:outline-none cursor-pointer">
                     <option value="deep-calls" selected>Multi-Level Pipeline (3-Levels Deep, 4 Calls in Main)</option>
-                    <option value="math-chain">Math Engine Pipeline (Nested Formula Calls)</option>
                     <option value="recursion">Factorial Recursion (Stack Accumulation)</option>
                 </select>
             </div>
-
-            <!-- Modal Toggle for Custom Code -->
-            <button id="btn-open-editor"
-                class="text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5">
-                <i class="fa-solid fa-pen-to-square"></i> Edit Code / Steps
-            </button>
         </div>
     </header>
 
@@ -301,49 +294,6 @@
 
         </section>
     </main>
-
-    <!-- EDIT CODE / CUSTOM STEP MODAL -->
-    <div id="editor-modal"
-        class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div
-            class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-            <!-- Modal Header -->
-            <div class="px-6 py-4 bg-slate-800/80 border-b border-slate-700 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-code text-sky-400"></i>
-                    <h3 class="font-bold text-white">Custom Program & Call Trace Editor</h3>
-                </div>
-                <button id="btn-close-modal" class="text-slate-400 hover:text-white text-lg transition">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-
-            <!-- Modal Body -->
-            <div class="p-6 overflow-y-auto space-y-4">
-                <p class="text-xs text-slate-300 leading-relaxed">
-                    You can view or edit the exact code string and execution sequence. Below is the multi-level method
-                    structure demonstrating 4 distinct calls in <code>main()</code> with support methods going up to 3
-                    levels deep.
-                </p>
-
-                <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1">Source Code Display (Java / C#
-                        Syntax):</label>
-                    <textarea id="custom-code-text" rows="12"
-                        class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-200 focus:outline-none focus:border-sky-500 leading-relaxed"></textarea>
-                </div>
-            </div>
-
-            <!-- Modal Footer -->
-            <div class="px-6 py-3 bg-slate-800/80 border-t border-slate-700 flex justify-end gap-3">
-                <button id="btn-cancel-modal"
-                    class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold rounded-lg">Cancel</button>
-                <button id="btn-apply-code"
-                    class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-lg shadow-md">Apply
-                    & Reload Visualizer</button>
-            </div>
-        </div>
-    </div>
 
     <script>
         /**
@@ -1013,15 +963,6 @@
         const speedSelect = document.getElementById('speed-select');
         const btnClearConsole = document.getElementById('btn-clear-console');
 
-        // Modal elements
-        const editorModal = document.getElementById('editor-modal');
-        const btnOpenEditor = document.getElementById('btn-open-editor');
-        const btnCloseModal = document.getElementById('btn-close-modal');
-        const btnCancelModal = document.getElementById('btn-cancel-modal');
-        const btnApplyCode = document.getElementById('btn-apply-code');
-        const customCodeText = document.getElementById('custom-code-text');
-
-
         /**
          * Render code lines in the code panel
          */
@@ -1264,7 +1205,6 @@
             renderCodePanel(prog.code);
             clearConsole();
             renderStep(0);
-            customCodeText.value = prog.code.join('\n');
         }
 
         // Event Listeners
@@ -1315,27 +1255,6 @@
         });
 
         btnClearConsole.addEventListener('click', clearConsole);
-
-        // Modal Controls
-        btnOpenEditor.addEventListener('click', () => {
-            editorModal.classList.remove('hidden');
-        });
-
-        btnCloseModal.addEventListener('click', () => {
-            editorModal.classList.add('hidden');
-        });
-
-        btnCancelModal.addEventListener('click', () => {
-            editorModal.classList.add('hidden');
-        });
-
-        btnApplyCode.addEventListener('click', () => {
-            const rawCode = customCodeText.value;
-            const codeLines = rawCode.split('\n');
-            PRESET_PROGRAMS[currentPreset].code = codeLines;
-            renderCodePanel(codeLines);
-            editorModal.classList.add('hidden');
-        });
 
         window.addEventListener('DOMContentLoaded', () => {
             loadPreset('deep-calls');
