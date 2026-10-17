@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knight's Tour Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .board-grid {
+            display: grid;
+            grid-template-columns: repeat(8, minmax(0, 1fr));
+            grid-template-rows: repeat(8, minmax(0, 1fr));
+            aspect-ratio: 1 / 1;
+        }
+        .square-light {
+            background-color: #e2e8f0;
+            color: #1e293b;
+        }
+        .square-dark {
+            background-color: #475569;
+            color: #f8fafc;
+        }
+        .square-visited-light {
+            background-color: #cbd5e1;
+            color: #475569;
+        }
+        .square-visited-dark {
+            background-color: #334155;
+            color: #94a3b8;
+        }
+        .valid-move {
+            box-shadow: inset 0 0 0 4px #22c55e;
+            cursor: pointer;
+            animation: pulse-valid 1.5s infinite;
+        }
+        @keyframes pulse-valid {
+            0%, 100% { box-shadow: inset 0 0 0 3px #22c55e; }
+            50% { box-shadow: inset 0 0 0 6px #4ade80; }
+        }
+        .knight-container {
+            transition: all 0.25s ease-in-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-between p-4 md:p-8">
+
+    <header class="w-full max-w-4xl flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-slate-700 pb-4">
+        <div>
+            <h1 class="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
+                <i class="fa-solid font-chess-knight text-amber-400 text-3xl"></i>
+                Knight's Tour Simulator
+            </h1>
+            <p class="text-xs md:text-sm text-slate-400 mt-1">
+                Accessibility scores dynamically update as squares are visited. Highlighted green squares are valid moves.
+            </p>
+        </div>
+        <div class="flex items-center gap-2">
+            <button id="btn-reset" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 active:bg-slate-800 text-white font-medium text-sm rounded-lg shadow transition flex items-center gap-2">
+                <i class="fa-solid fa-rotate-left"></i> Reset
+            </button>
+            <button id="btn-solve" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-900 font-bold text-sm rounded-lg shadow transition flex items-center gap-2">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Auto Solve
+            </button>
+        </div>
+    </header>
+
+    <main class="w-full max-w-4xl flex flex-col lg:flex-row gap-6 items-center lg:items-start justify-center">
+        
+        <!-- Dashboard & Stats HUD -->
+        <div class="w-full lg:w-80 flex flex-col gap-4">
+            <!-- HUD Card -->
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-xl flex flex-col gap-4">
+                <h2 class="text-xs uppercase tracking-wider text-slate-400 font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-gauge-high text-amber-400"></i> HUD Diagnostics
+                </h2>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700/50">
+                        <span class="text-xs text-slate-400 block font-medium">Current Move</span>
+                        <span id="hud-move-count" class="text-2xl font-black text-amber-400">0</span>
+                        <span class="text-xs text-slate-500">/ 64</span>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700/50">
+                        <span class="text-xs text-slate-400 block font-medium">Coverage</span>
+                        <span id="hud-coverage" class="text-2xl font-black text-emerald-400">0%</span>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-700">
+                    <div id="hud-progress-bar" class="bg-amber-400 h-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+
+                <!-- Game Status Banner -->
+                <div id="hud-status" class="bg-slate-900/80 rounded-lg p-3 border border-slate-700 text-sm text-slate-300 flex items-center gap-3">
+                    <i class="fa-solid fa-circle-info text-blue-400 text-lg"></i>
+                    <span>Click any square to place the Knight and start!</span>
+                </div>
+
+                <!-- Controls Panel -->
+                <div class="border-t border-slate-700/70 pt-3 flex flex-col gap-2">
+                    <label for="speed-slider" class="text-xs text-slate-400 font-medium flex justify-between">
+                        <span>Auto-Solve Speed</span>
+                        <span id="speed-value" class="text-amber-400">Medium</span>
+                    </label>
+                    <input type="range" id="speed-slider" min="50" max="800" value="300" step="50" class="w-full accent-amber-400 cursor-pointer">
+                </div>
+            </div>
+
+            <!-- Rules / Legend Box -->
+            <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 text-xs text-slate-400 space-y-2">
+                <div class="font-bold text-slate-300 flex items-center gap-2">
+                    <i class="fa-solid fa-circle-question text-amber-400"></i> Board Indicators:
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-5 h-5 rounded bg-amber-400 text-slate-900 font-black flex items-center justify-center text-[10px]">12</span>
+                    <span>Move sequence number (0 = Unvisited)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-5 h-5 rounded bg-slate-900 border border-slate-600 text-slate-300 flex items-center justify-center text-[10px] font-bold">5</span>
+                    <span>Square Accessibility (valid entry points remaining)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-5 h-5 rounded ring-2 ring-emerald-500 bg-emerald-900/40"></span>
+                    <span>Valid destination for next Knight jump</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full max-w-[500px] aspect-square bg-slate-800 p-3 rounded-2xl shadow-2xl border border-slate-700 relative flex flex-col">
+            <div id="board" class="board-grid w-full h-full rounded-xl overflow-hidden shadow-inner border border-slate-600/50">
+                <!-- 64 Squares dynamically injected via JavaScript -->
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-8 text-xs text-slate-500 text-center">
+        Interactive Knight's Tour Algorithm Visualizer &bull; Powered by Warnsdorff's Heuristic Logic
+    </footer>
+
+    <script>
+        // Board dimensions
+        const BOARD_SIZE = 8;
+        const TOTAL_SQUARES = BOARD_SIZE * BOARD_SIZE;
+
+        // Possible knight move offsets (L-shaped jumps)
+        const KNIGHT_MOVES = [
+            [-2, -1], [-2, 1], [-1, -2], [-1, 2],
+            [1, -2],  [1, 2],  [2, -1],  [2, 1]
+        ];
+
+        // State variables
+        let visitedOrder = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(0));
+        let accessibility = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(0));
+        let currentKnightPos = null; // { row, col }
+        let moveCount = 0;
+        let isSolving = false;
+        let solveInterval = null;
+
+        // UI DOM elements
+        const boardEl = document.getElementById('board');
+        const hudMoveCountEl = document.getElementById('hud-move-count');
+        const hudCoverageEl = document.getElementById('hud-coverage');
+        const hudProgressBar = document.getElementById('hud-progress-bar');
+        const hudStatusEl = document.getElementById('hud-status');
+        const btnReset = document.getElementById('btn-reset');
+        const btnSolve = document.getElementById('btn-solve');
+        const speedSlider = document.getElementById('speed-slider');
+        const speedValue = document.getElementById('speed-value');
+
+        // Helper: check if row and col are inside the board boundaries
+        function isValidSquare(r, c) {
+            return r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE;
+        }
+
+        // Recalcululate accessibility scores for all squares
+        // Accessibility = number of UNVISITED squares that can legally move to this square
+        function recalculateAccessibility() {
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (visitedOrder[r][c] > 0) {
+                        // Once visited, accessibility is 0
+                        accessibility[r][c] = 0;
+                    } else {
+                        let count = 0;
+                        for (const [dr, dc] of KNIGHT_MOVES) {
+                            const nr = r + dr;
+                            const nc = c + dc;
+                            // Check incoming moves from valid UNVISITED squares
+                            if (isValidSquare(nr, nc) && visitedOrder[nr][nc] === 0) {
+                                count++;
+                            }
+                        }
+                        accessibility[r][c] = count;
+                    }
+                }
+            }
+        }
+
+        function getValidMoves(r, c) {
+            if (r === null || c === null) return [];
+            const moves = [];
+            for (const [dr, dc] of KNIGHT_MOVES) {
+                const nr = r + dr;
+                const nc = c + dc;
+                if (isValidSquare(nr, nc) && visitedOrder[nr][nc] === 0) {
+                    moves.push({ row: nr, col: nc });
+                }
+            }
+            return moves;
+        }
+
+        // Initialize empty board grid
+        function initBoardUI() {
+            boardEl.innerHTML = '';
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const sq = document.createElement('div');
+                    sq.id = `sq-${r}-${c}`;
+                    sq.dataset.row = r;
+                    sq.dataset.col = c;
+                    sq.className = `relative flex flex-col justify-between p-1 select-none transition-all duration-200`;
+                    
+                    sq.addEventListener('click', () => handleSquareClick(r, c));
+                    boardEl.appendChild(sq);
+                }
+            }
+            updateBoardUI();
+        }
+
+        function updateBoardUI() {
+            const validMoves = currentKnightPos 
+                ? getValidMoves(currentKnightPos.row, currentKnightPos.col)
+                : [];
+            
+            const validSet = new Set(validMoves.map(m => `${m.row}-${m.col}`));
+
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const sq = document.getElementById(`sq-${r}-${c}`);
+                    const isDark = (r + c) % 2 === 1;
+                    const visited = visitedOrder[r][c] > 0;
+                    const isKnightHere = currentKnightPos && currentKnightPos.row === r && currentKnightPos.col === c;
+                    const isValidDestination = validSet.has(`${r}-${c}`);
+
+                    // Base background classes
+                    let bgClass = isDark ? 'square-dark' : 'square-light';
+                    if (visited) {
+                        bgClass = isDark ? 'square-visited-dark' : 'square-visited-light';
+                    }
+
+                    sq.className = `relative flex flex-col justify-between p-1.5 transition-all duration-200 ${bgClass}`;
+
+                    if (isValidDestination) {
+                        sq.classList.add('valid-move');
+                    }
+
+                    // Content rendering
+                    let moveText = visitedOrder[r][c];
+                    let accText = accessibility[r][c];
+
+                    sq.innerHTML = `
+                        <!-- Top Row: Accessibility Badge -->
+                        <div class="flex justify-between items-center w-full text-[10px] md:text-xs font-bold leading-none">
+                            <span class="opacity-40 uppercase tracking-tighter hidden sm:inline text-[8px]">
+                                ${String.fromCharCode(65 + c)}${8 - r}
+                            </span>
+                            <span class="ml-auto px-1.5 py-0.5 rounded-md bg-slate-900/60 text-slate-300 font-mono shadow-sm">
+                                ${accText}
+                            </span>
+                        </div>
+
+                        <!-- Center: Knight Piece or Visited Number -->
+                        <div class="flex-1 flex items-center justify-center relative">
+                            ${isKnightHere ? `
+                                <div class="knight-container text-amber-400 drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)] animate-bounce text-2xl sm:text-3xl md:text-4xl z-10">
+                                    <i class="fa-solid fa-chess-knight"></i>
+                                </div>
+                            ` : ''}
+                            
+                            ${visited && !isKnightHere ? `
+                                <span class="text-sm sm:text-base md:text-lg font-black text-amber-500/90 font-mono">
+                                    ${moveText}
+                                </span>
+                            ` : ''}
+
+                            ${!visited && isValidDestination ? `
+                                <div class="w-3 h-3 sm:w-4 sm:h-4 bg-emerald-400/80 rounded-full animate-ping"></div>
+                            ` : ''}
+                        </div>
+
+                        <!-- Bottom Row: Move Order Badge if Visited -->
+                        <div class="text-[9px] font-mono text-slate-400 text-left leading-none h-2">
+                            ${visited && isKnightHere ? `<span class="text-amber-400 font-bold">Move #${moveText}</span>` : ''}
+                        </div>
+                    `;
+                }
+            }
+
+            // Update HUD stats
+            hudMoveCountEl.textContent = moveCount;
+            const coverage = Math.round((moveCount / TOTAL_SQUARES) * 100);
+            hudCoverageEl.textContent = `${coverage}%`;
+            hudProgressBar.style.width = `${coverage}%`;
+
+            // Status message updates
+            if (moveCount === 0) {
+                updateStatus('fa-circle-info', 'text-blue-400', 'Click any square to place the Knight.');
+            } else if (moveCount === TOTAL_SQUARES) {
+                updateStatus('fa-trophy', 'text-amber-400', 'Full Knight\'s Tour Completed Successfully! 🎉');
+            } else if (validMoves.length === 0) {
+                updateStatus('fa-triangle-exclamation', 'text-red-400', `Tour ended! No valid moves left (${moveCount}/64 squares).`);
+            } else {
+                updateStatus('fa-shoe-prints', 'text-emerald-400', `${validMoves.length} valid move(s) available. Choose next position.`);
+            }
+        }
+
+        function updateStatus(icon, colorClass, message) {
+            hudStatusEl.innerHTML = `
+                <i class="fa-solid ${icon} ${colorClass} text-lg"></i>
+                <span>${message}</span>
+            `;
+        }
+
+        function handleSquareClick(r, c) {
+            if (isSolving) return; // Prevent clicks during auto-solving
+
+            // Initial Knight placement on unvisited board
+            if (moveCount === 0) {
+                executeMove(r, c);
+                return;
+            }
+
+            // Check if clicked square is a valid knight move from current position
+            const validMoves = getValidMoves(currentKnightPos.row, currentKnightPos.col);
+            const isValid = validMoves.some(m => m.row === r && m.col === c);
+
+            if (isValid) {
+                executeMove(r, c);
+            }
+        }
+
+        function executeMove(r, c) {
+            moveCount++;
+            visitedOrder[r][c] = moveCount;
+            currentKnightPos = { row: r, col: c };
+            recalculateAccessibility();
+            updateBoardUI();
+        }
+
+        // Auto-solver using Warnsdorff's rule (moves to square with minimum accessibility)
+        function stepWarnsdorff() {
+            if (!currentKnightPos) {
+                // If not started, pick a random starting square (or center)
+                const startR = Math.floor(Math.random() * BOARD_SIZE);
+                const startC = Math.floor(Math.random() * BOARD_SIZE);
+                executeMove(startR, startC);
+                return true;
+            }
+
+            const validMoves = getValidMoves(currentKnightPos.row, currentKnightPos.col);
+            if (validMoves.length === 0) {
+                stopAutoSolve();
+                return false;
+            }
+
+            // Calculate accessibility for candidate moves and pick the lowest
+            let minAccess = 999;
+            let candidates = [];
+
+            for (const move of validMoves) {
+                // Count how many valid unvisited moves this candidate square would have
+                let candidateAccess = 0;
+                for (const [dr, dc] of KNIGHT_MOVES) {
+                    const nr = move.row + dr;
+                    const nc = move.col + dc;
+                    if (isValidSquare(nr, nc) && visitedOrder[nr][nc] === 0) {
+                        candidateAccess++;
+                    }
+                }
+
+                if (candidateAccess < minAccess) {
+                    minAccess = candidateAccess;
+                    candidates = [move];
+                } else if (candidateAccess === minAccess) {
+                    candidates.push(move);
+                }
+            }
+
+            // Pick candidate with minimum accessibility (tie-break randomly)
+            const chosenMove = candidates[Math.floor(Math.random() * candidates.length)];
+            executeMove(chosenMove.row, chosenMove.col);
+
+            if (moveCount === TOTAL_SQUARES) {
+                stopAutoSolve();
+                return false;
+            }
+
+            return true;
+        }
+
+        function startAutoSolve() {
+            if (isSolving) return;
+            isSolving = true;
+            btnSolve.innerHTML = `<i class="fa-solid fa-pause"></i> Pause`;
+            btnSolve.classList.replace('bg-amber-500', 'bg-red-500');
+            btnSolve.classList.replace('hover:bg-amber-600', 'hover:bg-red-600');
+
+            const speed = 850 - parseInt(speedSlider.value);
+            solveInterval = setInterval(() => {
+                const continued = stepWarnsdorff();
+                if (!continued) {
+                    stopAutoSolve();
+                }
+            }, speed);
+        }
+
+        function stopAutoSolve() {
+            isSolving = false;
+            if (solveInterval) clearInterval(solveInterval);
+            btnSolve.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> Auto Solve`;
+            btnSolve.classList.replace('bg-red-500', 'bg-amber-500');
+            btnSolve.classList.replace('hover:bg-red-600', 'hover:bg-amber-600');
+        }
+
+        function resetGame() {
+            stopAutoSolve();
+            visitedOrder = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(0));
+            accessibility = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(0));
+            currentKnightPos = null;
+            moveCount = 0;
+            recalculateAccessibility();
+            updateBoardUI();
+        }
+
+        btnReset.addEventListener('click', resetGame);
+
+        btnSolve.addEventListener('click', () => {
+            if (isSolving) {
+                stopAutoSolve();
+            } else {
+                startAutoSolve();
+            }
+        });
+
+        speedSlider.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            if (val < 200) speedValue.textContent = 'Fast';
+            else if (val < 500) speedValue.textContent = 'Medium';
+            else speedValue.textContent = 'Slow';
+
+            if (isSolving) {
+                stopAutoSolve();
+                startAutoSolve();
+            }
+        });
+
+        // Initialize state & load grid on window load
+        window.onload = function() {
+            recalculateAccessibility();
+            initBoardUI();
+        };
+    </script>
+</body>
+</html>
