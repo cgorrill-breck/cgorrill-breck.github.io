@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Q5Play Reference Guide: The Global q5.update Loop</title>
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --primary-light: #eef2ff;
+            --text-color: #1f2937;
+            --bg-color: #f9fafb;
+            --card-bg: #ffffff;
+            --border-color: #e5e7eb;
+            --code-bg: #f3f4f6;
+            --accent-color: #059669;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        header {
+            border-bottom: 3px solid var(--primary-color);
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin: 0 0 0.5rem 0;
+            font-size: 2rem;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            font-size: 1.1rem;
+            margin: 0;
+        }
+
+        h2 {
+            color: var(--primary-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.3rem;
+            margin-top: 2rem;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0 2rem 0;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: var(--primary-light);
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+
+        code {
+            font-family: "Courier New", Courier, monospace;
+            background-color: var(--code-bg);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.95em;
+            color: #d97706;
+        }
+
+        .code-block {
+            background-color: #1e293b;
+            color: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: "Courier New", Courier, monospace;
+            margin: 0.5rem 0;
+        }
+
+        .code-block code {
+            background-color: transparent;
+            color: inherit;
+            padding: 0;
+        }
+
+        .note {
+            background-color: #ecfdf5;
+            border-left: 4px solid var(--accent-color);
+            padding: 0.75rem 1rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .note-title {
+            font-weight: bold;
+            color: var(--accent-color);
+            margin-bottom: 0.25rem;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+                padding: 0;
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Mr. Gorrill's CSci Stuff!</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" aria-current="page" href="index.html">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="MSCSCIDocs.html">MS CSci Docs</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container">
+        <header>
+            <h1>Q5Play Reference Guide</h1>
+            <p class="subtitle">Unit: The Global Game Loop &amp; No More Setup/Draw</p>
+        </header>
+
+        <!-- SECTION 1 -->
+        <h2>1. Goodbye setup() and draw()!</h2>
+        <p>In traditional p5.js, you divide your code into a <code>setup()</code> block (which runs once) and a
+            <code>draw()</code> block (which loops). In Q5, this structure is completely flattened. Code placed directly
+            in the script acts as your setup, and <code>q5.update</code> acts as your loop.
+        </p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Concept</th>
+                    <th>How it works in Q5</th>
+                    <th>Example</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Initialization (The "Setup")</strong></td>
+                    <td>Any code written at the top level of your file runs once when the script loads. This is where
+                        you create the canvas, set gravity, and spawn sprites.</td>
+                    <td><code>await Canvas(800, 600);<br>world.gravity.y = 10;</code></td>
+                </tr>
+                <tr>
+                    <td><strong>The Game Loop (The "Draw")</strong></td>
+                    <td>Assign a function to <code>q5.update</code>. Q5Play will automatically run this block of code
+                        every single frame.</td>
+                    <td><code>q5.update = function() { ... };</code></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- SECTION 2 -->
+        <h2>2. Structuring Your q5.update Loop</h2>
+        <p>Because Q5 handles physics and rendering automatically, you only need to put active logic inside
+            <code>q5.update</code>. This keeps your game loop clean and focused on gameplay mechanics rather than
+            drawing shapes.
+        </p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>What goes inside q5.update?</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Backgrounds</strong></td>
+                    <td>Clearing the screen every frame (e.g., <code>background('#FDF5E6');</code>).</td>
+                </tr>
+                <tr>
+                    <td><strong>Dynamic State Checks</strong></td>
+                    <td>Checking if a player is grounded (e.g.,
+                        <code>player1.canJump = sensor.overlapping(walls) > 0;</code>).
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Collision Handlers</strong></td>
+                    <td>Calling custom collision functions between dynamic groups (e.g.,
+                        <code>handleEnemyCollision(player, enemies);</code>).
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Input Handling</strong></td>
+                    <td>Checking for continuous key presses for movement, if not handled internally by sprite logic.
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Camera Updates</strong></td>
+                    <td>Making the camera follow a specific target (e.g., <code>camera.pos = player1.pos;</code>).</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="note">
+            <div class="note-title">💡 Logic Tip</div>
+            Even though <code>q5.update</code> replaces <code>draw()</code>, you <strong>do not</strong> need to call
+            <code>drawSprites()</code>. Q5Play automatically renders all sprites at the end of the update cycle!
+        </div>
+
+        <!-- SECTION 3 -->
+        <h2>3. Example Usage: Complete Q5 Structure</h2>
+
+        <div class="note">
+            <div class="note-title">A Basic Q5 Platformer Script</div>
+            <div class="code-block">
+                <pre><code>// 1. "Setup" code goes right here at the top!
+const TILE_SIZE = 16;
+await Canvas(TILE_SIZE * 30, TILE_SIZE * 20);
+
+// Configure physics and world variables
+allSprites.pixelPerfect = true;
+world.gravity.y = 10;
+
+// Create your sprites and groups
+let enemies = new Group();
+let player1 = new Sprite(100, -80, TILE_SIZE * 0.8);
+let camera = { zoom: 2, pos: { x: 0, y: 0 } }; // Example camera object
+
+// 2. The Game Loop
+q5.update = function () {
+    // Clear the screen
+    background('#FDF5E6');
+
+    // Handle gameplay logic
+    if (mouse.pressing()) {
+        allSprites.debug = true;
+    } else {
+        allSprites.debug = false;
+    }
+
+    // Keep camera locked on the player
+    camera.pos = player1.pos;
+};
+</code></pre>
+            </div>
+        </div>
+
+    </div>
+</body>
+
+</html>
