@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Q5Play Reference Guide: Sprites</title>
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --primary-light: #eef2ff;
+            --text-color: #1f2937;
+            --bg-color: #f9fafb;
+            --card-bg: #ffffff;
+            --border-color: #e5e7eb;
+            --code-bg: #f3f4f6;
+            --accent-color: #059669;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        header {
+            border-bottom: 3px solid var(--primary-color);
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin: 0 0 0.5rem 0;
+            font-size: 2rem;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            font-size: 1.1rem;
+            margin: 0;
+        }
+
+        h2 {
+            color: var(--primary-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.3rem;
+            margin-top: 2rem;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0 2rem 0;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: var(--primary-light);
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+
+        code {
+            font-family: "Courier New", Courier, monospace;
+            background-color: var(--code-bg);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.95em;
+            color: #d97706;
+        }
+
+        .code-block {
+            background-color: #1e293b;
+            color: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: "Courier New", Courier, monospace;
+            margin: 0.5rem 0;
+        }
+
+        .code-block code {
+            background-color: transparent;
+            color: inherit;
+            padding: 0;
+        }
+
+        .note {
+            background-color: #ecfdf5;
+            border-left: 4px solid var(--accent-color);
+            padding: 0.75rem 1rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .note-title {
+            font-weight: bold;
+            color: var(--accent-color);
+            margin-bottom: 0.25rem;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+                padding: 0;
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Mr. Gorrill's CSci Stuff!</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" aria-current="page" href="index.html">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="MSCSCIDocs.html">MS CSci Docs</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container">
+        <header>
+            <h1>Q5Play Reference Guide</h1>
+            <p class="subtitle">Unit: Sprites &amp; World Basics </p>
+        </header>
+
+        <!-- SECTION 1 -->
+        <h2>1. Canvas &amp; World Dimensions</h2>
+        <p>The canvas (or world) is your game screen. You can set its dimensions and access its size using built-in
+            variables.</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Task / Variable</th>
+                    <th>Syntax / Code</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Set Canvas Size</strong></td>
+                    <td><code>createCanvas(width, height);</code></td>
+                    <td>Creates the screen size in pixels. Usually goes inside <code>setup()</code>.</td>
+                </tr>
+                <tr>
+                    <td><strong>Access / Set Width</strong></td>
+                    <td><code>width</code></td>
+                    <td>Holds the width of the screen. You can read it (e.g., <code>width / 2</code>) or change it.</td>
+                </tr>
+                <tr>
+                    <td><strong>Access / Set Height</strong></td>
+                    <td><code>height</code></td>
+                    <td>Holds the height of the screen. You can read it (e.g., <code>height - 10</code>) or change it.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- SECTION 2 -->
+        <h2>2. Creating Sprites (Constructors)</h2>
+        <p>A <strong>constructor</strong> creates a new sprite on the screen.</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Constructor Type</th>
+                    <th>Syntax</th>
+                    <th>What it Creates</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Default (No-Arg)</strong></td>
+                    <td><code>let s = new Sprite();</code></td>
+                    <td>Creates a default square sprite in the center of the screen (50x50 pixels).</td>
+                </tr>
+                <tr>
+                    <td><strong>Full Constructor (Rectangle)</strong></td>
+                    <td><code>let s = new Sprite(x, y, w, h);</code></td>
+                    <td>Creates a rectangular sprite at position <code>(x, y)</code> with width <code>w</code> and
+                        height
+                        <code>h</code>.
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Full Constructor (Circle)</strong></td>
+                    <td><code>let s = new Sprite(x, y, d);</code></td>
+                    <td>Creates a circular sprite at position <code>(x, y)</code> with diameter <code>d</code>.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- SECTION 3 -->
+        <h2>3. Position Coordinates (x, y, pos)</h2>
+        <p>Sprites are positioned based on their <strong>center point</strong>.</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Property</th>
+                    <th>Description</th>
+                    <th>Example Code</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>sprite.x</code></td>
+                    <td>The horizontal position on the screen.</td>
+                    <td><code>player.x = 200;</code></td>
+                </tr>
+                <tr>
+                    <td><code>sprite.y</code></td>
+                    <td>The vertical position on the screen.</td>
+                    <td><code>player.y = 150;</code></td>
+                </tr>
+                <tr>
+                    <td><code>sprite.pos</code> / <code>sprite.position</code></td>
+                    <td>Sets or accesses both X and Y coordinates at the same time using a vector.</td>
+                    <td><code>player.pos = {x: 100, y: 300};</code></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- SECTION 4 -->
+        <h2>4. Dimensions &amp; Shape Behavior</h2>
+        <p>Changing size properties dynamically affects both visual size and collider shape.</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Property</th>
+                    <th>Shape Effect</th>
+                    <th>Example Code</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>sprite.w</code> / <code>sprite.width</code></td>
+                    <td>Sets horizontal width. Keeps or converts sprite into a <strong>box/rectangle</strong>.</td>
+                    <td><code>coin.w = 30;</code></td>
+                </tr>
+                <tr>
+                    <td><code>sprite.h</code> / <code>sprite.height</code></td>
+                    <td>Sets vertical height. Keeps or converts sprite into a <strong>box/rectangle</strong>.</td>
+                    <td><code>coin.h = 30;</code></td>
+                </tr>
+                <tr>
+                    <td><code>sprite.d</code> / <code>sprite.diameter</code></td>
+                    <td>Setting diameter automatically turns the sprite into a <strong>circle</strong>!</td>
+                    <td><code>ball.d = 40;</code></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="note">
+            <div class="note-title">💡 Shape Tip</div>
+            If you want a round sprite (like a ball or coin), set <code>sprite.d</code> or <code>sprite.diameter</code>
+            instead of width and height!
+        </div>
+
+        <!-- SECTION 5 -->
+        <h2>5. Setting Colors</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Property</th>
+                    <th>Description</th>
+                    <th>Example Code</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>sprite.color</code></td>
+                    <td>Sets the primary color of the sprite using color names or hex codes.</td>
+                    <td><code>player.color = 'red';</code><br><code>player.color = '#3b82f6';</code></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- SECTION 6 -->
+        <h2>6. Setting Images</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Property / Method</th>
+                    <th>Description</th>
+                    <th>Example Code</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>sprite.img</code> / <code>sprite.image</code></td>
+                    <td>Assigns a loaded image object or file path directly to the sprite.</td>
+                    <td><code>player.img = 'hero.png';</code></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="note">
+            <div class="note-title">Example Usage: Complete Setup</div>
+            <div class="code-block">
+                <pre><code>  await Canvas(800, 400);
+
+  // Default sprite at center
+  let box = new Sprite();
+
+  // Custom player sprite
+  let player = new Sprite(100, 200, 40, 40);
+  player.color = 'blue';
+
+  // Ball sprite using diameter
+  let ball = new Sprite(400, 200, 50);
+  ball.color = 'green';
+  ball.diameter = 10;
+  ball.x = jit(100); // jit is a random number  0 - 100
+  ball.y = -height / 2; height is the canvas height. this is the top of the canvas
+</code></pre>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+
+</html>
